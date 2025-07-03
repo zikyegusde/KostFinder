@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kostfinder.AuthViewModel
 import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.screens.*
 import com.google.accompanist.navigation.animation.AnimatedNavHost
@@ -19,6 +20,7 @@ import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 fun AppNavigation() {
     val navController = rememberAnimatedNavController()
     val kostViewModel: KostViewModel = viewModel()
+    val authViewModel: AuthViewModel = viewModel()
 
     AnimatedNavHost(
         navController = navController,
@@ -33,6 +35,10 @@ fun AppNavigation() {
         }
         composable("login") {
             LoginScreen(navController)
+        }
+        // Rute baru untuk registrasi
+        composable("register") {
+            RegisterScreen(navController, authViewModel)
         }
         composable("home") {
             HomeScreen(navController, kostViewModel)
@@ -50,15 +56,10 @@ fun AppNavigation() {
             SearchScreen(navController, kostViewModel)
         }
         composable("profile") {
-            // Panggilan ke ProfileScreen diperbaiki
             ProfileScreen(
                 navController = navController,
-                onLogoutClick = {
-                    // Logika logout sekarang ada di dalam ProfileScreen
-                },
-                onEditProfileClick = {
-                    navController.navigate("editProfile")
-                }
+                onLogoutClick = { /* Logic is now inside ProfileScreen */ },
+                onEditProfileClick = { navController.navigate("editProfile") }
             )
         }
         composable("editProfile") {

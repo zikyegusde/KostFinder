@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "205515813783",
+    "firebase_url": "https://kostfinder-8636c-default-rtdb.firebaseio.com",
     "project_id": "kostfinder-8636c",
     "storage_bucket": "kostfinder-8636c.firebasestorage.app"
   },

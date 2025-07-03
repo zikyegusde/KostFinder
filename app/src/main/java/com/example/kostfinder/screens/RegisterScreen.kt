@@ -1,5 +1,6 @@
 package com.example.kostfinder.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.ClickableText
@@ -7,24 +8,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.kostfinder.AuthViewModel
 import com.example.kostfinder.R
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
-    var isLoading by remember { mutableStateOf(false) }
-    val auth = Firebase.auth
+    var selectedRole by remember { mutableStateOf("User") }
+    val roles = listOf("User", "Admin")
+    val isLoading by authViewModel.isLoading.collectAsState()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -40,8 +43,10 @@ fun LoginScreen(navController: NavController) {
                 .size(120.dp)
                 .padding(bottom = 16.dp)
         )
-        Text("Login", style = MaterialTheme.typography.headlineLarge)
+
+        Text("Buat Akun Baru", style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(24.dp))
+
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -50,6 +55,7 @@ fun LoginScreen(navController: NavController) {
             singleLine = true
         )
         Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -58,6 +64,27 @@ fun LoginScreen(navController: NavController) {
             visualTransformation = PasswordVisualTransformation(),
             singleLine = true
         )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Role Selection
+        Text("Daftar sebagai:", style = MaterialTheme.typography.bodyLarge)
+        Row(Modifier.fillMaxWidth()) {
+            roles.forEach { role ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = (role == selectedRole),
+                        onClick = { selectedRole = role }
+                    )
+                    Text(
+                        text = role,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(24.dp))
 
         if (isLoading) {
@@ -66,46 +93,30 @@ fun LoginScreen(navController: NavController) {
             Button(
                 onClick = {
                     if (email.isBlank() || password.isBlank()) {
-                        errorMessage = "Email dan password wajib diisi"
-                    } else {
-                        isLoading = true
-                        auth.signInWithEmailAndPassword(email, password)
-                            .addOnCompleteListener { task ->
-                                isLoading = false
-                                if (task.isSuccessful) {
-                                    // Pengecekan peran bisa dilakukan dengan membaca data dari Firestore
-                                    // Untuk sementara, kita tetap gunakan email admin untuk navigasi
-                                    if (email.equals("admin@kost.com", ignoreCase = true)) {
-                                        navController.navigate("admin") {
-                                            popUpTo("login") { inclusive = true }
-                                        }
-                                    } else {
-                                        navController.navigate("home") {
-                                            popUpTo("login") { inclusive = true }
-                                        }
-                                    }
-                                } else {
-                                    errorMessage = "Login gagal: ${task.exception?.message}"
-                                }
+                        Toast.makeText(context, "Email dan password tidak boleh kosong.", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    authViewModel.registerUser(email, password, selectedRole.lowercase()) { success, message, role ->
+                        if (success) {
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            val destination = if (role == "admin") "admin" else "home"
+                            navController.navigate(destination) {
+                                popUpTo("login") { inclusive = true }
                             }
+                        } else {
+                            Toast.makeText(context, "Registrasi Gagal: $message", Toast.LENGTH_LONG).show()
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Masuk")
+                Text("Daftar")
             }
         }
-
-        if (errorMessage.isNotBlank()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
-        // Tautan ke Halaman Registrasi
         ClickableText(
-            text = AnnotatedString("Belum punya akun? Daftar di sini"),
-            onClick = { navController.navigate("register") },
+            text = AnnotatedString("Sudah punya akun? Masuk di sini"),
+            onClick = { navController.navigate("login") },
             style = TextStyle(
                 color = MaterialTheme.colorScheme.primary,
                 textDecoration = TextDecoration.Underline
