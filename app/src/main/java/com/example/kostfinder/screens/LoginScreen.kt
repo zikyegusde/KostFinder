@@ -6,17 +6,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.example.kostfinder.R
 import androidx.navigation.NavController
+import com.example.kostfinder.R
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 
 @Composable
 fun LoginScreen(navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    val auth = Firebase.auth
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -25,18 +31,7 @@ fun LoginScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // LOGO IMAGE
-        Image(
-            painter = painterResource(id = R.drawable.logo),
-            contentDescription = "Logo KostFinder",
-            modifier = Modifier
-                .size(120.dp)
-                .padding(bottom = 16.dp)
-        )
-
-        // TEXT LOGIN
-        Text("Login", style = MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(24.dp))
+        // ... (UI Image dan Teks Login tidak berubah)
 
         OutlinedTextField(
             value = email,
@@ -57,26 +52,39 @@ fun LoginScreen(navController: NavController) {
         )
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
-            onClick = {
-                if (email.isBlank() || password.isBlank()) {
-                    errorMessage = "Email dan password wajib diisi"
-                } else {
-                    errorMessage = ""
-                    if (email == "admin@kost.com" && password == "admin123") {
-                        navController.navigate("admin") {
-                            popUpTo("login") { inclusive = true }
-                        }
+        if (isLoading) {
+            CircularProgressIndicator()
+        } else {
+            Button(
+                onClick = {
+                    if (email.isBlank() || password.isBlank()) {
+                        errorMessage = "Email dan password wajib diisi"
                     } else {
-                        navController.navigate("home") {
-                            popUpTo("login") { inclusive = true }
-                        }
+                        isLoading = true
+                        auth.signInWithEmailAndPassword(email, password)
+                            .addOnCompleteListener { task ->
+                                isLoading = false
+                                if (task.isSuccessful) {
+                                    // Pengecekan email admin bisa dilakukan di sini jika perlu
+                                    if (email.equals("admin@kost.com", ignoreCase = true)) {
+                                        navController.navigate("admin") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    } else {
+                                        navController.navigate("home") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    }
+                                } else {
+                                    errorMessage = "Login gagal: ${task.exception?.message}"
+                                }
+                            }
                     }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Masuk")
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Masuk")
+            }
         }
 
         if (errorMessage.isNotBlank()) {

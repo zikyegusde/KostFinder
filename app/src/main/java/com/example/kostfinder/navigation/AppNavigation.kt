@@ -2,102 +2,77 @@
 
 package com.example.kostfinder.navigation
 
-import androidx.compose.animation.*
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import com.example.kostfinder.data.kostList
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.screens.*
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
+import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
-fun AppNavigation(
-    navController: NavHostController,
-    name: String,
-    email: String,
-    onUpdateProfile: (String, String) -> Unit
-) {
+fun AppNavigation() {
+    val navController = rememberAnimatedNavController()
+    val kostViewModel: KostViewModel = viewModel()
+
     AnimatedNavHost(
         navController = navController,
         startDestination = "splash",
-        enterTransition = {
-            slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300))
-        },
-        exitTransition = {
-            slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300))
-        },
-        popEnterTransition = {
-            slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300))
-        },
-        popExitTransition = {
-            slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300))
-        }
+        enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) },
+        exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) },
+        popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) },
+        popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) }
     ) {
         composable("splash") {
             SplashScreen(navController)
         }
-
         composable("login") {
             LoginScreen(navController)
         }
-
         composable("home") {
-            HomeScreen(navController)
+            HomeScreen(navController, kostViewModel)
         }
-
-        composable("search") {
-            SearchScreen(navController)
+        composable("admin") {
+            AdminScreen(navController, kostViewModel)
         }
-
-        composable("favorites") {
-            FavoritesScreen { kost ->
-                navController.navigate("detail/${kost.id}")
+        composable("detail/{kostId}") { backStackEntry ->
+            val kostId = backStackEntry.arguments?.getString("kostId")
+            if (kostId != null) {
+                DetailScreen(kostId, navController, kostViewModel)
             }
         }
-
+        composable("search") {
+            SearchScreen(navController, kostViewModel)
+        }
         composable("profile") {
-            println("Navigated to profile screen with name=$name and email=$email") // debug
+            // Panggilan ke ProfileScreen diperbaiki
             ProfileScreen(
-                name = name,
-                email = email,
+                navController = navController,
                 onLogoutClick = {
-                    navController.navigate("login") {
-                        popUpTo("home") { inclusive = true }
-                    }
+                    // Logika logout sekarang ada di dalam ProfileScreen
                 },
                 onEditProfileClick = {
                     navController.navigate("editProfile")
                 }
             )
         }
-
         composable("editProfile") {
             EditProfileScreen(
-                currentName = name,
-                currentEmail = email,
-                onSaveClick = { newName, newEmail ->
-                    println("Saving new profile: $newName, $newEmail") // debug
-                    onUpdateProfile(newName, newEmail)
-                    navController.popBackStack()
-                },
-                onCancelClick = {
-                    navController.popBackStack()
-                }
+                currentName = "",
+                currentEmail = "",
+                onSaveClick = { _, _ -> navController.popBackStack() },
+                onCancelClick = { navController.popBackStack() }
             )
         }
-
-        composable("admin") {
-            AdminScreen(navController)
-        }
-
-        composable("detail/{kostId}") { backStackEntry ->
-            val kostId = backStackEntry.arguments?.getString("kostId")?.toIntOrNull()
-            val kost = kostList.find { it.id == kostId }
-            if (kost != null) {
-                DetailScreen(kost, navController)
-            }
+        composable("favorites") {
+            FavoritesScreen(onKostClick = { kost ->
+                navController.navigate("detail/${kost.id}")
+            })
         }
     }
 }

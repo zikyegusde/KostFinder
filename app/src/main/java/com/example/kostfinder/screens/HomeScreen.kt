@@ -16,45 +16,44 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.kostfinder.data.kostList
+import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.models.Kost
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController) {
-    var selectedItem by remember { mutableStateOf("home") }
+fun HomeScreen(navController: NavController, kostViewModel: KostViewModel = viewModel()) {
     val bottomNavController = rememberNavController()
+    var selectedItem by remember { mutableStateOf("home_content") }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("KostFinder - Jimbaran") },
-                actions = {
-                    TextButton(onClick = {
-                        navController.navigate("admin")
-                    }) {
-                        Text("Admin", color = MaterialTheme.colorScheme.onPrimary)
-                    }
-                }
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
         bottomBar = {
-            BottomNavigationBar(selectedItem = selectedItem) {
-                selectedItem = it
-                bottomNavController.navigate(it) {
+            BottomNavigationBar(selectedItem = selectedItem) { route ->
+                selectedItem = route
+                bottomNavController.navigate(route) {
                     launchSingleTop = true
                     restoreState = true
                     popUpTo(bottomNavController.graph.findStartDestination().id) {
@@ -64,44 +63,43 @@ fun HomeScreen(navController: NavController) {
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
         NavHost(
             navController = bottomNavController,
-            startDestination = "home"
+            startDestination = "home_content",
+            modifier = Modifier.padding(paddingValues)
         ) {
-            composable("home") {
-                LazyColumn {
-                    items(kostList) { kost ->
-                        KostListItem(kost = kost, onClick = {
-                            navController.navigate("detail/${kost.id}")
-                        })
+            composable("home_content") {
+                val kostList by kostViewModel.kostList.collectAsState()
+                val isLoading by kostViewModel.isLoading.collectAsState()
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (isLoading && kostList.isEmpty()) {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(kostList) { kost ->
+                                KostListItem(kost = kost, onClick = {
+                                    navController.navigate("detail/${kost.id}")
+                                })
+                            }
+                        }
                     }
                 }
             }
             composable("search") {
-                SearchScreen(navController)
+                SearchScreen(navController, kostViewModel)
             }
             composable("favorites") {
-                FavoritesScreen(
-                    onKostClick = { kost ->
-                        navController.navigate("detail/${kost.id}")
-                    }
-                )
+                FavoritesScreen(onKostClick = { kost ->
+                    navController.navigate("detail/${kost.id}")
+                })
             }
             composable("profile") {
                 ProfileScreen(
-                    name = "Gusde Artadwana",
-                    email = "gusdeartadwana@gmail.com",
-                    onLogoutClick = {
-                        navController.navigate("login") {
-                            popUpTo("home") { inclusive = true }
-                        }
-                    },
-                    onEditProfileClick = {
-                        navController.navigate("editProfile")
-                    }
+                    navController = navController,
+                    onLogoutClick = { /* Logic is now inside ProfileScreen */ },
+                    onEditProfileClick = { navController.navigate("editProfile") }
                 )
-                }
             }
         }
     }
@@ -151,7 +149,7 @@ fun KostListItem(kost: Kost, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier.height(120.dp)) {
             Image(
-                painter = rememberAsyncImagePainter(kost.imageUrl),
+                painter = rememberAsyncImagePainter(model = kost.imageUrl),
                 contentDescription = kost.name,
                 modifier = Modifier
                     .width(140.dp)
@@ -161,7 +159,7 @@ fun KostListItem(kost: Kost, onClick: () -> Unit) {
             Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier
-                    .padding(vertical = 12.dp)
+                    .padding(vertical = 12.dp, horizontal = 8.dp)
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
@@ -180,8 +178,8 @@ fun BottomNavigationBar(
 ) {
     NavigationBar {
         NavigationBarItem(
-            selected = selectedItem == "home",
-            onClick = { onItemSelected("home") },
+            selected = selectedItem == "home_content",
+            onClick = { onItemSelected("home_content") },
             icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
             label = { Text("Home") }
         )
