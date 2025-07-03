@@ -1,9 +1,6 @@
 package com.example.kostfinder.screens
 
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,18 +26,12 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
     var hargaKost by remember { mutableStateOf("") }
     var alamatKost by remember { mutableStateOf("") }
     var teleponKost by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var imageUrl by remember { mutableStateOf("") } // State untuk menampung URL
     var selectedStatus by remember { mutableStateOf("Tersedia") }
 
     val kostList by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
     val context = LocalContext.current
-
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        imageUri = uri
-    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -51,7 +42,6 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
             item {
                 Text("Tambah Kost Baru", style = MaterialTheme.typography.headlineMedium)
                 Spacer(modifier = Modifier.height(16.dp))
-                // ... (Semua OutlinedTextField untuk input data, sama seperti sebelumnya)
 
                 OutlinedTextField(value = namaKost, onValueChange = { namaKost = it }, label = { Text("Nama Kost") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
@@ -64,22 +54,22 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                 OutlinedTextField(value = teleponKost, onValueChange = { teleponKost = it }, label = { Text("No Telepon") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(value = deskripsiKost, onValueChange = { deskripsiKost = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth())
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-
-                Button(onClick = { imagePickerLauncher.launch("image/*") }) {
-                    Text("Pilih Gambar")
-                }
-                imageUri?.let {
-                    Text("Gambar dipilih: ${it.lastPathSegment}")
-                }
+                // Mengganti tombol upload dengan field input URL
+                OutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("URL Gambar") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
                     onClick = {
-                        val uri = imageUri
-                        if (uri == null) {
-                            Toast.makeText(context, "Silakan pilih gambar terlebih dahulu", Toast.LENGTH_SHORT).show()
+                        if (namaKost.isBlank() || lokasiKost.isBlank() || hargaKost.isBlank() || imageUrl.isBlank()) {
+                            Toast.makeText(context, "Semua field wajib diisi, termasuk URL Gambar.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         val newKost = Kost(
@@ -89,9 +79,10 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                             description = deskripsiKost,
                             address = alamatKost,
                             phone = teleponKost,
-                            isAvailable = selectedStatus == "Tersedia"
+                            isAvailable = selectedStatus == "Tersedia",
+                            imageUrl = imageUrl // Gunakan URL dari state
                         )
-                        kostViewModel.addKost(newKost, uri) { success, error ->
+                        kostViewModel.addKost(newKost) { success, error ->
                             if (success) {
                                 Toast.makeText(context, "Kost berhasil ditambahkan", Toast.LENGTH_SHORT).show()
                                 // Reset fields
@@ -101,14 +92,14 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                                 alamatKost = ""
                                 teleponKost = ""
                                 deskripsiKost = ""
-                                imageUri = null
+                                imageUrl = ""
                             } else {
                                 Toast.makeText(context, "Gagal menambahkan: $error", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = namaKost.isNotBlank() && lokasiKost.isNotBlank() && hargaKost.isNotBlank() && !isLoading
+                    enabled = !isLoading
                 ) {
                     Text("Simpan")
                 }
@@ -137,7 +128,8 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            enabled = !isLoading
                         ) {
                             Text("Hapus", color = MaterialTheme.colorScheme.onError)
                         }
@@ -150,7 +142,7 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                     onClick = {
                         Firebase.auth.signOut()
                         navController.navigate("login") {
-                            popUpTo("admin") { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     },
                     modifier = Modifier.fillMaxWidth()

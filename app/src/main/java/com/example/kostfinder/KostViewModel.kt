@@ -1,22 +1,17 @@
 package com.example.kostfinder
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kostfinder.models.Kost
-import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.storage.ktx.storage
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 
 class KostViewModel : ViewModel() {
     private val db = Firebase.firestore
-    private val storage = Firebase.storage
 
     private val _kostList = MutableStateFlow<List<Kost>>(emptyList())
     val kostList = _kostList.asStateFlow()
@@ -35,11 +30,19 @@ class KostViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val snapshot = db.collection("kosts").get().await()
-                _kostList.value = snapshot.toObjects(Kost::class.java)
+                // Menggunakan listener Firestore untuk pembaruan realtime
+                db.collection("kosts").addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        _isLoading.value = false
+                        return@addSnapshotListener
+                    }
+
+                    if (snapshot != null) {
+                        _kostList.value = snapshot.toObjects(Kost::class.java)
+                    }
+                    _isLoading.value = false
+                }
             } catch (e: Exception) {
-                // Tangani error, misalnya dengan log atau pesan ke UI
-            } finally {
                 _isLoading.value = false
             }
         }
@@ -52,21 +55,23 @@ class KostViewModel : ViewModel() {
                 val document = db.collection("kosts").document(kostId).get().await()
                 _selectedKost.value = document.toObject(Kost::class.java)
             } catch (e: Exception) {
-                // Tangani error
+                // Handle error
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    fun addKost(kost: Kost, imageUri: Uri, callback: (Boolean, String?) -> Unit) {
+    /**
+     * Menambahkan objek Kost baru ke Firestore.
+     * Objek Kost diasumsikan sudah berisi URL gambar.
+     */
+    fun addKost(kost: Kost, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val imageUrl = uploadImage(imageUri)
-                val newKost = kost.copy(imageUrl = imageUrl)
-                db.collection("kosts").add(newKost).await()
-                fetchKostList() // Refresh list setelah menambah data
+                db.collection("kosts").add(kost).await()
+                // Tidak perlu fetch ulang karena listener sudah aktif
                 callback(true, null)
             } catch (e: Exception) {
                 callback(false, e.message)
@@ -81,7 +86,6 @@ class KostViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 db.collection("kosts").document(kostId).delete().await()
-                fetchKostList() // Refresh list
                 callback(true, null)
             } catch (e: Exception) {
                 callback(false, e.message)
@@ -89,12 +93,5 @@ class KostViewModel : ViewModel() {
                 _isLoading.value = false
             }
         }
-    }
-
-    private suspend fun uploadImage(uri: Uri): String {
-        val fileName = "images/${UUID.randomUUID()}.jpg"
-        val ref = storage.reference.child(fileName)
-        ref.putFile(uri).await()
-        return ref.downloadUrl.await().toString()
     }
 }
