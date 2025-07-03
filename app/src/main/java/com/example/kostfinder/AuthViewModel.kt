@@ -53,4 +53,20 @@ class AuthViewModel : ViewModel() {
             }
         }
     }
+
+    /**
+     * Fetches the role for a given user ID from Firestore.
+     * @param uid The user's unique ID.
+     * @param onComplete Callback that returns the user's role ("admin", "user") or null if not found.
+     */
+    fun fetchUserRole(uid: String, onComplete: (String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val userDoc = db.collection("users").document(uid).get().await()
+                onComplete(userDoc.getString("role"))
+            } catch (e: Exception) {
+                onComplete(null) // Failed to get role
+            }
+        }
+    }
 }
