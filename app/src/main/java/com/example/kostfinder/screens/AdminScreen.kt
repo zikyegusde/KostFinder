@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -26,8 +27,15 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
     var hargaKost by remember { mutableStateOf("") }
     var alamatKost by remember { mutableStateOf("") }
     var teleponKost by remember { mutableStateOf("") }
-    var imageUrl by remember { mutableStateOf("") } // State untuk menampung URL
+    var imageUrl by remember { mutableStateOf("") }
+
+    var statusExpanded by remember { mutableStateOf(false) }
     var selectedStatus by remember { mutableStateOf("Tersedia") }
+    val statusOptions = listOf("Tersedia", "Penuh")
+
+    var typeExpanded by remember { mutableStateOf(false) }
+    var selectedType by remember { mutableStateOf("Campur") }
+    val kostTypes = listOf("Campur", "Putra", "Putri")
 
     val kostList by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
@@ -36,40 +44,82 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
+                .fillMaxSize(),
+            contentPadding = PaddingValues(24.dp)
         ) {
             item {
-                Text("Tambah Kost Baru", style = MaterialTheme.typography.headlineMedium)
+                Text("Panel Admin", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Tambah Kost Baru", style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(value = namaKost, onValueChange = { namaKost = it }, label = { Text("Nama Kost") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = lokasiKost, onValueChange = { lokasiKost = it }, label = { Text("Lokasi") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = lokasiKost, onValueChange = { lokasiKost = it }, label = { Text("Lokasi (Contoh: Jimbaran, Bali)") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = hargaKost, onValueChange = { hargaKost = it }, label = { Text("Harga (contoh: Rp 1.200.000/bulan)") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = hargaKost, onValueChange = { hargaKost = it }, label = { Text("Harga (Contoh: Rp 1.200.000/bulan)") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(value = alamatKost, onValueChange = { alamatKost = it }, label = { Text("Alamat Lengkap") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = teleponKost, onValueChange = { teleponKost = it }, label = { Text("No Telepon") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = teleponKost, onValueChange = { teleponKost = it }, label = { Text("No. Telepon") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = deskripsiKost, onValueChange = { deskripsiKost = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = deskripsiKost, onValueChange = { deskripsiKost = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 4)
                 Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(value = imageUrl, onValueChange = { imageUrl = it }, label = { Text("URL Gambar") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Mengganti tombol upload dengan field input URL
-                OutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = { imageUrl = it },
-                    label = { Text("URL Gambar") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExposedDropdownMenuBox(
+                        expanded = statusExpanded,
+                        onExpandedChange = { statusExpanded = !statusExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = selectedStatus,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Status") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
+                            statusOptions.forEach { status ->
+                                DropdownMenuItem(text = { Text(status) }, onClick = {
+                                    selectedStatus = status
+                                    statusExpanded = false
+                                })
+                            }
+                        }
+                    }
+                    ExposedDropdownMenuBox(
+                        expanded = typeExpanded,
+                        onExpandedChange = { typeExpanded = !typeExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = selectedType,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Tipe") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
+                            kostTypes.forEach { type ->
+                                DropdownMenuItem(text = { Text(type) }, onClick = {
+                                    selectedType = type
+                                    typeExpanded = false
+                                })
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
                     onClick = {
                         if (namaKost.isBlank() || lokasiKost.isBlank() || hargaKost.isBlank() || imageUrl.isBlank()) {
-                            Toast.makeText(context, "Semua field wajib diisi, termasuk URL Gambar.", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Semua field wajib diisi.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         val newKost = Kost(
@@ -80,65 +130,74 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                             address = alamatKost,
                             phone = teleponKost,
                             isAvailable = selectedStatus == "Tersedia",
-                            imageUrl = imageUrl // Gunakan URL dari state
+                            imageUrl = imageUrl,
+                            type = selectedType
                         )
                         kostViewModel.addKost(newKost) { success, error ->
                             if (success) {
                                 Toast.makeText(context, "Kost berhasil ditambahkan", Toast.LENGTH_SHORT).show()
-                                // Reset fields
-                                namaKost = ""
-                                lokasiKost = ""
-                                hargaKost = ""
-                                alamatKost = ""
-                                teleponKost = ""
-                                deskripsiKost = ""
-                                imageUrl = ""
+                                namaKost = ""; lokasiKost = ""; hargaKost = ""; alamatKost = ""; teleponKost = ""; deskripsiKost = ""; imageUrl = ""
                             } else {
                                 Toast.makeText(context, "Gagal menambahkan: $error", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
                     enabled = !isLoading
                 ) {
-                    Text("Simpan")
+                    Text("Simpan Kost")
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("Daftar Kost", style = MaterialTheme.typography.headlineSmall)
+                // PERBAIKAN: Menggunakan HorizontalDivider
+                HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
+                Text("Daftar Kost Saat Ini", style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
-            items(kostList) { kost ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text("Nama: ${kost.name}", style = MaterialTheme.typography.titleMedium)
-                        Text("Lokasi: ${kost.location}")
-                        Button(
-                            onClick = {
-                                kostViewModel.deleteKost(kost.id) { success, error ->
-                                    if(success) {
-                                        Toast.makeText(context, "Kost dihapus", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Gagal menghapus: $error", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                            enabled = !isLoading
+            if (isLoading && kostList.isEmpty()) {
+                item {
+                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
+                }
+            } else {
+                items(kostList) { kost ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        elevation = CardDefaults.cardElevation(2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Hapus", color = MaterialTheme.colorScheme.onError)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(kost.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Text(kost.location, style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Button(
+                                onClick = {
+                                    kostViewModel.deleteKost(kost.id) { success, error ->
+                                        if (success) {
+                                            Toast.makeText(context, "Kost dihapus", Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            Toast.makeText(context, "Gagal menghapus: $error", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                enabled = !isLoading
+                            ) {
+                                Text("Hapus")
+                            }
                         }
                     }
                 }
             }
+
             item {
                 Spacer(modifier = Modifier.height(32.dp))
-                Button(
+                OutlinedButton(
                     onClick = {
                         Firebase.auth.signOut()
                         navController.navigate("login") {

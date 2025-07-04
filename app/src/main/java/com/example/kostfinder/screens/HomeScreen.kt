@@ -1,90 +1,135 @@
 package com.example.kostfinder.screens
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.kostfinder.KostViewModel
-import com.example.kostfinder.models.Kost
+import com.example.kostfinder.screens.common.KostCardItem
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+
+// Data class untuk item navigasi agar lebih rapi
+data class BottomNavItem(val label: String, val route: String, val icon: ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController: NavController, kostViewModel: KostViewModel = viewModel()) {
+    // NavController ini khusus untuk navigasi di dalam Bottom Bar
     val bottomNavController = rememberNavController()
-    var selectedItem by remember { mutableStateOf("home_content") }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("KostFinder - Jimbaran") },
+                title = { Text("KostFinder") },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary
+                    titleContentColor = Color.White
                 )
             )
         },
         bottomBar = {
-            BottomNavigationBar(selectedItem = selectedItem) { route ->
-                selectedItem = route
-                bottomNavController.navigate(route) {
-                    launchSingleTop = true
-                    restoreState = true
-                    popUpTo(bottomNavController.graph.findStartDestination().id) {
-                        saveState = true
-                    }
+            val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
+
+            val items = listOf(
+                BottomNavItem("Home", "home_content", Icons.Default.Home),
+                BottomNavItem("Search", "search", Icons.Default.Search),
+                BottomNavItem("Favorites", "favorites", Icons.Default.Favorite),
+                BottomNavItem("Profile", "profile", Icons.Default.Person)
+            )
+
+            NavigationBar {
+                items.forEach { screen ->
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = null) },
+                        label = { Text(screen.label) },
+                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        onClick = {
+                            bottomNavController.navigate(screen.route) {
+                                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
                 }
             }
-        }
-    ) { paddingValues ->
+        },
+        containerColor = Color(0xFFF0F4F7)
+    ) { innerPadding ->
         NavHost(
             navController = bottomNavController,
             startDestination = "home_content",
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(innerPadding)
         ) {
             composable("home_content") {
-                val kostList by kostViewModel.kostList.collectAsState()
-                val isLoading by kostViewModel.isLoading.collectAsState()
-
-                Box(modifier = Modifier.fillMaxSize()) {
-                    if (isLoading && kostList.isEmpty()) {
-                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(kostList) { kost ->
-                                KostListItem(kost = kost, onClick = {
-                                    navController.navigate("detail/${kost.id}")
-                                })
-                            }
-                        }
-                    }
-                }
+                HomeScreenContent(
+                    mainNavController = navController,
+                    kostViewModel = kostViewModel
+                )
             }
             composable("search") {
                 SearchScreen(navController, kostViewModel)
@@ -97,7 +142,7 @@ fun HomeScreen(navController: NavController, kostViewModel: KostViewModel = view
             composable("profile") {
                 ProfileScreen(
                     navController = navController,
-                    onLogoutClick = { /* Logic is now inside ProfileScreen */ },
+                    onLogoutClick = { /* Logic is inside ProfileScreen */ },
                     onEditProfileClick = { navController.navigate("editProfile") }
                 )
             }
@@ -106,100 +151,156 @@ fun HomeScreen(navController: NavController, kostViewModel: KostViewModel = view
 }
 
 @Composable
-fun KostListItem(kost: Kost, onClick: () -> Unit) {
-    var pressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.96f else 1f,
-        animationSpec = tween(durationMillis = 120),
-        label = "scale"
-    )
-    val coroutineScope = rememberCoroutineScope()
-    val offsetX = remember { Animatable(0f) }
+fun HomeScreenContent(
+    mainNavController: NavController,
+    kostViewModel: KostViewModel
+) {
+    val kostList by kostViewModel.kostList.collectAsState()
+    val isLoading by kostViewModel.isLoading.collectAsState()
+    var selectedCategory by remember { mutableStateOf("Semua") }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                translationX = offsetX.value
+    val categories = listOf("Semua", "Denpasar", "Tabanan", "Jimbaran", "Putra", "Putri", "Campur")
+
+    val filteredList = remember(selectedCategory, kostList) {
+        when {
+            selectedCategory == "Semua" -> kostList
+            selectedCategory in listOf("Putra", "Putri", "Campur") -> {
+                kostList.filter { it.type.equals(selectedCategory, ignoreCase = true) }
             }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    pressed = true
-                    coroutineScope.launch {
-                        offsetX.animateTo(
-                            targetValue = 20f,
-                            animationSpec = tween(durationMillis = 100)
-                        )
-                        offsetX.animateTo(
-                            targetValue = 0f,
-                            animationSpec = tween(durationMillis = 100)
-                        )
-                        delay(80)
-                        onClick()
-                        pressed = false
-                    }
-                }
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            else -> {
+                kostList.filter { it.location.contains(selectedCategory, ignoreCase = true) }
+            }
+        }
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 16.dp)
     ) {
-        Row(modifier = Modifier.height(120.dp)) {
-            Image(
-                painter = rememberAsyncImagePainter(model = kost.imageUrl),
-                contentDescription = kost.name,
-                modifier = Modifier
-                    .width(140.dp)
-                    .fillMaxHeight(),
-                contentScale = ContentScale.Crop
+        item {
+            val imageUrls = listOf(
+                "https://tse3.mm.bing.net/th/id/OIP.L4QxNrmQhPGgWnsTJdbCoQAAAA?pid=Api&P=0&h=180",
+                "https://tse3.mm.bing.net/th/id/OIP.LCrvvcBSz2cfxkN4O31x8gHaDt?pid=Api&P=0&h=180"
             )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(
-                modifier = Modifier
-                    .padding(vertical = 12.dp, horizontal = 8.dp)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(kost.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Text(kost.location, style = MaterialTheme.typography.bodyMedium)
-                Text(kost.price, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            AutoSlidingCarousel(imageUrls = imageUrls)
+        }
+
+        item {
+            CategoryChips(
+                categories = categories,
+                selectedCategory = selectedCategory,
+                onCategorySelected = { selectedCategory = it }
+            )
+        }
+        item {
+            Text(
+                text = "Rekomendasi Untukmu",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+        if (isLoading && filteredList.isEmpty()) {
+            item {
+                Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
+        } else {
+            items(filteredList) { kost ->
+                KostCardItem(kost = kost, onClick = {
+                    mainNavController.navigate("detail/${kost.id}")
+                })
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BottomNavigationBar(
-    selectedItem: String,
-    onItemSelected: (String) -> Unit
+fun AutoSlidingCarousel(imageUrls: List<String>) {
+    val pagerState = rememberPagerState(pageCount = { imageUrls.size })
+
+    LaunchedEffect(Unit) {
+        while(true) {
+            delay(3000) // Jeda 3 detik
+            val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
+            pagerState.animateScrollToPage(nextPage)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) { page ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = imageUrls[page]),
+                    contentDescription = "Iklan ${page + 1}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            Modifier.wrapContentHeight(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(pagerState.pageCount) { iteration ->
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.LightGray
+                Box(
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(8.dp)
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryChips(
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit
 ) {
-    NavigationBar {
-        NavigationBarItem(
-            selected = selectedItem == "home_content",
-            onClick = { onItemSelected("home_content") },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
-            label = { Text("Home") }
-        )
-        NavigationBarItem(
-            selected = selectedItem == "search",
-            onClick = { onItemSelected("search") },
-            icon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-            label = { Text("Search") }
-        )
-        NavigationBarItem(
-            selected = selectedItem == "favorites",
-            onClick = { onItemSelected("favorites") },
-            icon = { Icon(Icons.Default.Favorite, contentDescription = "Favorites") },
-            label = { Text("Favorites") }
-        )
-        NavigationBarItem(
-            selected = selectedItem == "profile",
-            onClick = { onItemSelected("profile") },
-            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-            label = { Text("Profile") }
-        )
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(categories) { category ->
+            val isSelected = category == selectedCategory
+            FilterChip(
+                selected = isSelected,
+                onClick = { onCategorySelected(category) },
+                label = { Text(category) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White
+                ),
+                leadingIcon = if (isSelected) {
+                    { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
+                } else {
+                    null
+                }
+            )
+        }
     }
 }

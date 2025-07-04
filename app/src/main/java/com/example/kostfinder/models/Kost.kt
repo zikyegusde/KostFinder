@@ -13,5 +13,7 @@ data class Kost(
     val address: String = "",
     val phone: String = "",
     val ratings: List<Map<String, Any>> = emptyList(),
-    var isAvailable: Boolean = true
+    var isAvailable: Boolean = true,
+    val bookedBy: List<String> = emptyList(),
+    val type: String = "Campur" // Field baru untuk tipe kost (Putra, Putri, Campur)
 )

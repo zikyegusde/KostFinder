@@ -3,6 +3,7 @@ package com.example.kostfinder
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kostfinder.models.Kost
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,25 +27,19 @@ class KostViewModel : ViewModel() {
         fetchKostList()
     }
 
-    fun fetchKostList() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                // Menggunakan listener Firestore untuk pembaruan realtime
-                db.collection("kosts").addSnapshotListener { snapshot, error ->
-                    if (error != null) {
-                        _isLoading.value = false
-                        return@addSnapshotListener
-                    }
-
-                    if (snapshot != null) {
-                        _kostList.value = snapshot.toObjects(Kost::class.java)
-                    }
-                    _isLoading.value = false
-                }
-            } catch (e: Exception) {
+    private fun fetchKostList() {
+        _isLoading.value = true
+        db.collection("kosts").addSnapshotListener { snapshot, error ->
+            if (error != null) {
                 _isLoading.value = false
+                return@addSnapshotListener
             }
+            if (snapshot != null) {
+                // PERBAIKAN: Menggunakan toObjects() yang secara otomatis memetakan
+                // ID dokumen ke field yang memiliki anotasi @DocumentId.
+                _kostList.value = snapshot.toObjects(Kost::class.java)
+            }
+            _isLoading.value = false
         }
     }
 
@@ -55,23 +50,18 @@ class KostViewModel : ViewModel() {
                 val document = db.collection("kosts").document(kostId).get().await()
                 _selectedKost.value = document.toObject(Kost::class.java)
             } catch (e: Exception) {
-                // Handle error
+                _selectedKost.value = null
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    /**
-     * Menambahkan objek Kost baru ke Firestore.
-     * Objek Kost diasumsikan sudah berisi URL gambar.
-     */
     fun addKost(kost: Kost, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 db.collection("kosts").add(kost).await()
-                // Tidak perlu fetch ulang karena listener sudah aktif
                 callback(true, null)
             } catch (e: Exception) {
                 callback(false, e.message)
@@ -91,6 +81,30 @@ class KostViewModel : ViewModel() {
                 callback(false, e.message)
             } finally {
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun addRating(kostId: String, rating: Map<String, Any>, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                db.collection("kosts").document(kostId).update("ratings", FieldValue.arrayUnion(rating)).await()
+                getKostById(kostId)
+                onComplete(true)
+            } catch (e: Exception) {
+                onComplete(false)
+            }
+        }
+    }
+
+    fun bookKost(kostId: String, userId: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                db.collection("kosts").document(kostId).update("bookedBy", FieldValue.arrayUnion(userId)).await()
+                getKostById(kostId)
+                onComplete(true)
+            } catch (e: Exception) {
+                onComplete(false)
             }
         }
     }

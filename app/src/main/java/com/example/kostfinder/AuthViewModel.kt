@@ -29,12 +29,10 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                // 1. Create user in Firebase Authentication
                 val authResult = auth.createUserWithEmailAndPassword(email, pass).await()
                 val firebaseUser = authResult.user
 
                 if (firebaseUser != null) {
-                    // 2. Create a user object and save it to Firestore
                     val user = User(
                         uid = firebaseUser.uid,
                         email = email,
@@ -54,18 +52,13 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Fetches the role for a given user ID from Firestore.
-     * @param uid The user's unique ID.
-     * @param onComplete Callback that returns the user's role ("admin", "user") or null if not found.
-     */
     fun fetchUserRole(uid: String, onComplete: (String?) -> Unit) {
         viewModelScope.launch {
             try {
                 val userDoc = db.collection("users").document(uid).get().await()
                 onComplete(userDoc.getString("role"))
             } catch (e: Exception) {
-                onComplete(null) // Failed to get role
+                onComplete(null)
             }
         }
     }
