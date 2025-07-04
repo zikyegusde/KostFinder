@@ -1,8 +1,18 @@
 package com.example.kostfinder.screens.common
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
@@ -24,9 +34,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.kostfinder.models.Kost
 
+
 /**
  * Komponen Card yang dapat digunakan kembali untuk menampilkan item kost.
- * Ditempatkan di sini agar bisa diakses oleh HomeScreen dan FavoritesScreen.
  */
 @Composable
 fun KostCardItem(kost: Kost, onClick: () -> Unit) {
@@ -93,6 +103,56 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Komponen Placeholder baru dengan efek shimmer.
+ */
+@Composable
+fun ShimmerKostCardPlaceholder() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(Modifier) { // Efek shimmer diterapkan di sini
+            // Placeholder untuk gambar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .background(Color.LightGray.copy(alpha = 0.6f))
+            )
+            Column(modifier = Modifier.padding(16.dp)) {
+                // Placeholder untuk nama kost
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(24.dp)
+                        .background(Color.LightGray.copy(alpha = 0.6f))
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                // Placeholder untuk lokasi
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(20.dp)
+                        .background(Color.LightGray.copy(alpha = 0.6f))
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                // Placeholder untuk harga
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.3f)
+                        .height(20.dp)
+                        .background(Color.LightGray.copy(alpha = 0.6f))
                 )
             }
         }

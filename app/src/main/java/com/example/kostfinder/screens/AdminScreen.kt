@@ -22,13 +22,13 @@ import com.google.firebase.ktx.Firebase
 @Composable
 fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = viewModel()) {
     var namaKost by remember { mutableStateOf("") }
-    var lokasiKost by remember { mutableStateOf("") }
     var deskripsiKost by remember { mutableStateOf("") }
     var hargaKost by remember { mutableStateOf("") }
     var alamatKost by remember { mutableStateOf("") }
     var teleponKost by remember { mutableStateOf("") }
     var imageUrl by remember { mutableStateOf("") }
 
+    // State untuk dropdowns
     var statusExpanded by remember { mutableStateOf(false) }
     var selectedStatus by remember { mutableStateOf("Tersedia") }
     val statusOptions = listOf("Tersedia", "Penuh")
@@ -37,14 +37,20 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
     var selectedType by remember { mutableStateOf("Campur") }
     val kostTypes = listOf("Campur", "Putra", "Putri")
 
+    // PERUBAHAN: State untuk dropdown kabupaten
+    var kabupatenExpanded by remember { mutableStateOf(false) }
+    var selectedKabupaten by remember { mutableStateOf("Denpasar") }
+    val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
+
+    var isPromo by remember { mutableStateOf(false) }
+
     val kostList by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(24.dp)
         ) {
             item {
@@ -55,8 +61,37 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
 
                 OutlinedTextField(value = namaKost, onValueChange = { namaKost = it }, label = { Text("Nama Kost") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = lokasiKost, onValueChange = { lokasiKost = it }, label = { Text("Lokasi (Contoh: Jimbaran, Bali)") }, modifier = Modifier.fillMaxWidth())
+
+                // PERUBAHAN: Mengganti input teks lokasi dengan dropdown kabupaten
+                ExposedDropdownMenuBox(
+                    expanded = kabupatenExpanded,
+                    onExpandedChange = { kabupatenExpanded = !kabupatenExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = selectedKabupaten,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Pilih Kabupaten") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = kabupatenExpanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = kabupatenExpanded,
+                        onDismissRequest = { kabupatenExpanded = false }
+                    ) {
+                        kabupatenOptions.forEach { kabupaten ->
+                            DropdownMenuItem(
+                                text = { Text(kabupaten) },
+                                onClick = {
+                                    selectedKabupaten = kabupaten
+                                    kabupatenExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(value = hargaKost, onValueChange = { hargaKost = it }, label = { Text("Harga (Contoh: Rp 1.200.000/bulan)") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(value = alamatKost, onValueChange = { alamatKost = it }, label = { Text("Alamat Lengkap") }, modifier = Modifier.fillMaxWidth())
@@ -76,8 +111,7 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                     ) {
                         OutlinedTextField(
                             value = selectedStatus,
-                            onValueChange = {},
-                            readOnly = true,
+                            onValueChange = {}, readOnly = true,
                             label = { Text("Status") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
                             modifier = Modifier.menuAnchor()
@@ -98,8 +132,7 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                     ) {
                         OutlinedTextField(
                             value = selectedType,
-                            onValueChange = {},
-                            readOnly = true,
+                            onValueChange = {}, readOnly = true,
                             label = { Text("Tipe") },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
                             modifier = Modifier.menuAnchor()
@@ -114,29 +147,32 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isPromo, onCheckedChange = { isPromo = it })
+                    Text("Tandai sebagai Promo Spesial")
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
                     onClick = {
-                        if (namaKost.isBlank() || lokasiKost.isBlank() || hargaKost.isBlank() || imageUrl.isBlank()) {
-                            Toast.makeText(context, "Semua field wajib diisi.", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
+                        val tags = if (isPromo) listOf("Promo") else emptyList()
                         val newKost = Kost(
                             name = namaKost,
-                            location = lokasiKost,
+                            location = selectedKabupaten, // Menggunakan kabupaten yang dipilih
                             price = hargaKost,
                             description = deskripsiKost,
                             address = alamatKost,
                             phone = teleponKost,
                             isAvailable = selectedStatus == "Tersedia",
                             imageUrl = imageUrl,
-                            type = selectedType
+                            type = selectedType,
+                            tags = tags
                         )
                         kostViewModel.addKost(newKost) { success, error ->
                             if (success) {
                                 Toast.makeText(context, "Kost berhasil ditambahkan", Toast.LENGTH_SHORT).show()
-                                namaKost = ""; lokasiKost = ""; hargaKost = ""; alamatKost = ""; teleponKost = ""; deskripsiKost = ""; imageUrl = ""
+                                namaKost = ""; hargaKost = ""; alamatKost = ""; teleponKost = ""; deskripsiKost = ""; imageUrl = ""; isPromo = false
                             } else {
                                 Toast.makeText(context, "Gagal menambahkan: $error", Toast.LENGTH_LONG).show()
                             }
@@ -148,29 +184,17 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                     Text("Simpan Kost")
                 }
 
-                // PERBAIKAN: Menggunakan HorizontalDivider
                 HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp))
                 Text("Daftar Kost Saat Ini", style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
             if (isLoading && kostList.isEmpty()) {
-                item {
-                    CircularProgressIndicator(modifier = Modifier.padding(16.dp))
-                }
+                item { CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
             } else {
                 items(kostList) { kost ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        elevation = CardDefaults.cardElevation(2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                    Card(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(kost.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text(kost.location, style = MaterialTheme.typography.bodyMedium)
@@ -178,11 +202,8 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                             Button(
                                 onClick = {
                                     kostViewModel.deleteKost(kost.id) { success, error ->
-                                        if (success) {
-                                            Toast.makeText(context, "Kost dihapus", Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, "Gagal menghapus: $error", Toast.LENGTH_LONG).show()
-                                        }
+                                        if (success) Toast.makeText(context, "Kost dihapus", Toast.LENGTH_SHORT).show()
+                                        else Toast.makeText(context, "Gagal menghapus: $error", Toast.LENGTH_LONG).show()
                                     }
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -200,9 +221,7 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                 OutlinedButton(
                     onClick = {
                         Firebase.auth.signOut()
-                        navController.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
+                        navController.navigate("login") { popUpTo(0) { inclusive = true } }
                     },
                     modifier = Modifier.fillMaxWidth()
                 ) {

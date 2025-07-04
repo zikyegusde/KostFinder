@@ -17,6 +17,16 @@ class KostViewModel : ViewModel() {
     private val _kostList = MutableStateFlow<List<Kost>>(emptyList())
     val kostList = _kostList.asStateFlow()
 
+    // StateFlow baru untuk setiap sesi
+    private val _promoKosts = MutableStateFlow<List<Kost>>(emptyList())
+    val promoKosts = _promoKosts.asStateFlow()
+
+    private val _popularKosts = MutableStateFlow<List<Kost>>(emptyList())
+    val popularKosts = _popularKosts.asStateFlow()
+
+    private val _newKosts = MutableStateFlow<List<Kost>>(emptyList())
+    val newKosts = _newKosts.asStateFlow()
+
     private val _selectedKost = MutableStateFlow<Kost?>(null)
     val selectedKost = _selectedKost.asStateFlow()
 
@@ -35,9 +45,15 @@ class KostViewModel : ViewModel() {
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                // PERBAIKAN: Menggunakan toObjects() yang secara otomatis memetakan
-                // ID dokumen ke field yang memiliki anotasi @DocumentId.
-                _kostList.value = snapshot.toObjects(Kost::class.java)
+                val allKosts = snapshot.toObjects(Kost::class.java)
+                _kostList.value = allKosts
+
+                // Memproses data untuk setiap sesi
+                _promoKosts.value = allKosts.filter { it.tags.contains("Promo") }
+                _newKosts.value = allKosts.sortedByDescending { it.createdAt }
+                _popularKosts.value = allKosts.sortedByDescending { kost ->
+                    kost.ratings.mapNotNull { it["rating"] as? Double }.average()
+                }
             }
             _isLoading.value = false
         }
