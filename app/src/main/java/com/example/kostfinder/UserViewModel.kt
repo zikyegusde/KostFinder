@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kostfinder.models.User
+import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
@@ -76,6 +77,42 @@ class UserViewModel : ViewModel() {
                 // Menampilkan pesan error jika pembaruan gagal
                 Log.e("UserViewModel", "ERROR: Failed to toggle favorite: ${e.message}")
                 Toast.makeText(context, "Gagal memperbarui favorit: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    // --- TAMBAHKAN FUNGSI BARU DI SINI ---
+    fun updateUserProfile(name: String, email: String, context: Context, onComplete: (Boolean) -> Unit) {
+        val user = auth.currentUser
+        if (user == null) {
+            onComplete(false)
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                // 1. Memperbarui nama di Firebase Auth
+                val profileUpdates = UserProfileChangeRequest.Builder()
+                    .setDisplayName(name)
+                    .build()
+                user.updateProfile(profileUpdates).await()
+
+                // 2. Memperbarui nama dan email di Firestore
+                val userDocRef = db.collection("users").document(user.uid)
+                val updates = mapOf(
+                    "name" to name,
+                    "email" to email
+                )
+                userDocRef.update(updates).await()
+
+                // 3. Memuat ulang data pengguna agar UI ter-update
+                fetchUserData(user.uid)
+
+                Toast.makeText(context, "Profil berhasil diperbarui", Toast.LENGTH_SHORT).show()
+                onComplete(true)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Gagal memperbarui profil: ${e.message}", Toast.LENGTH_LONG).show()
+                onComplete(false)
             }
         }
     }

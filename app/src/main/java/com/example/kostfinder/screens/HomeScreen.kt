@@ -119,20 +119,26 @@ fun HomeScreenContent(
     val isLoading by kostViewModel.isLoading.collectAsState()
     val userData by userViewModel.userData.collectAsState()
     var selectedCategory by remember { mutableStateOf("Semua") }
+    var selectedKabupaten by remember { mutableStateOf<String?>(null) }
 
-    val categories = listOf("Semua", "Denpasar", "Tabanan", "Jimbaran", "Putra", "Putri", "Campur")
 
-    val filteredList = remember(selectedCategory, allKosts) {
+    val categories = listOf("Semua", "Kabupaten", "Putra", "Putri", "Campur")
+    val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
+
+
+    val filteredList = remember(selectedCategory, selectedKabupaten, allKosts) {
         when {
-            selectedCategory == "Semua" -> allKosts // Tidak perlu filter jika "Semua"
+            selectedKabupaten != null -> {
+                allKosts.filter { it.location.equals(selectedKabupaten, ignoreCase = true) }
+            }
+            selectedCategory == "Semua" -> allKosts
             selectedCategory in listOf("Putra", "Putri", "Campur") -> {
                 allKosts.filter { it.type.equals(selectedCategory, ignoreCase = true) }
             }
-            else -> {
-                allKosts.filter { it.location.contains(selectedCategory, ignoreCase = true) }
-            }
+            else -> allKosts
         }
     }
+
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -150,17 +156,28 @@ fun HomeScreenContent(
             AutoSlidingCarousel(imageUrls = imageUrls)
         }
 
-        // PERBAIKAN: Menggunakan kembali komponen CategoryChips yang dinamis dan bisa diklik
+
         item {
             CategoryChips(
                 categories = categories,
                 selectedCategory = selectedCategory,
-                onCategorySelected = { selectedCategory = it }
+                onCategorySelected = {
+                    selectedCategory = it
+                    if (it != "Kabupaten") {
+                        selectedKabupaten = null
+                    }
+                },
+                kabupatenOptions = kabupatenOptions,
+                selectedKabupaten = selectedKabupaten,
+                onKabupatenSelected = {
+                    selectedKabupaten = it
+                    selectedCategory = "Kabupaten"
+                }
             )
         }
 
-        // Logika untuk menampilkan sesi rekomendasi atau hasil filter
-        if (selectedCategory == "Semua") {
+
+        if (selectedCategory == "Semua" && selectedKabupaten == null) {
             item {
                 RecommendationSession(
                     title = "Promo Spesial",
@@ -186,10 +203,13 @@ fun HomeScreenContent(
                 )
             }
         } else {
-            // Tampilkan hasil filter jika kategori selain "Semua" dipilih
+            val title = when {
+                selectedKabupaten != null -> "Hasil untuk \"$selectedKabupaten\""
+                else -> "Hasil untuk \"$selectedCategory\""
+            }
             item {
                 Text(
-                    text = "Hasil untuk \"$selectedCategory\"",
+                    text = title,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -308,8 +328,14 @@ fun AutoSlidingCarousel(imageUrls: List<String>) {
 fun CategoryChips(
     categories: List<String>,
     selectedCategory: String,
-    onCategorySelected: (String) -> Unit
+    onCategorySelected: (String) -> Unit,
+    kabupatenOptions: List<String>,
+    selectedKabupaten: String?,
+    onKabupatenSelected: (String) -> Unit
 ) {
+    var kabupatenExpanded by remember { mutableStateOf(false) }
+
+
     Column {
         Text(
             text = "Kategori Pilihan",
@@ -322,25 +348,62 @@ fun CategoryChips(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(categories) { category ->
-                val isSelected = category == selectedCategory
-                FilterChip(
-                    selected = isSelected,
-                    onClick = { onCategorySelected(category) },
-                    label = { Text(category) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    leadingIcon = if (isSelected) {
-                        { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
-                    } else {
-                        null
+                if (category == "Kabupaten") {
+                    Box {
+                        FilterChip(
+                            selected = selectedCategory == "Kabupaten",
+                            onClick = {
+                                onCategorySelected("Kabupaten")
+                                kabupatenExpanded = true
+                            },
+                            label = { Text(selectedKabupaten ?: "Kabupaten") },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White
+                            ),
+                            leadingIcon = if (selectedCategory == "Kabupaten") {
+                                { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
+                            } else {
+                                null
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = kabupatenExpanded,
+                            onDismissRequest = { kabupatenExpanded = false }
+                        ) {
+                            kabupatenOptions.forEach { kabupaten ->
+                                DropdownMenuItem(
+                                    text = { Text(kabupaten) },
+                                    onClick = {
+                                        onKabupatenSelected(kabupaten)
+                                        kabupatenExpanded = false
+                                    }
+                                )
+                            }
+                        }
                     }
-                )
+                } else {
+                    val isSelected = category == selectedCategory
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onCategorySelected(category) },
+                        label = { Text(category) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        ),
+                        leadingIcon = if (isSelected) {
+                            { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
+                        } else {
+                            null
+                        }
+                    )
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun RecommendationSession(
@@ -403,7 +466,11 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val averageRating = kost.ratings.mapNotNull { it["rating"] as? Double }.average()
+                    val averageRating = if (kost.ratings.isNotEmpty()) {
+                        kost.ratings.mapNotNull { it["rating"] as? Double }.average()
+                    } else {
+                        0.0
+                    }
                     Icon(Icons.Filled.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
                     Text(
                         text = " ${String.format(Locale.US, "%.1f", averageRating)} | ${kost.location}",
