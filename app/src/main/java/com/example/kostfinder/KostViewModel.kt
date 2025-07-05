@@ -54,11 +54,9 @@ class KostViewModel : ViewModel() {
                 _promoKosts.value = allKosts.filter { it.tags.contains("Promo") }
                 _newKosts.value = allKosts.sortedByDescending { it.createdAt }
 
-                // --- PERBAIKAN DI SINI: Menggunakan `it.rating` bukan `it["rating"]` ---
                 _popularKosts.value = allKosts.sortedByDescending { kost ->
                     if (kost.ratings.isEmpty()) 0.0 else kost.ratings.map { it.rating }.average()
                 }
-                // ----------------------------------------------------------------------
             }
             _isLoading.value = false
         }
@@ -195,4 +193,19 @@ class KostViewModel : ViewModel() {
             }
         }
     }
+
+    // --- FUNGSI BARU UNTUK MENGHAPUS KOMENTAR ---
+    fun deleteRating(kostId: String, rating: Rating, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                db.collection("kosts").document(kostId)
+                    .update("ratings", FieldValue.arrayRemove(rating))
+                    .await()
+                onComplete(true)
+            } catch (e: Exception) {
+                onComplete(false)
+            }
+        }
+    }
+    // ---------------------------------------------
 }

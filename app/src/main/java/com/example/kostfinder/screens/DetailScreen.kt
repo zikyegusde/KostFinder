@@ -10,10 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -73,6 +70,11 @@ fun DetailScreen(
     var showReplyDialog by remember { mutableStateOf(false) }
     var selectedRatingForReply by remember { mutableStateOf<Rating?>(null) }
     var replyText by remember { mutableStateOf("") }
+
+    // --- STATE BARU UNTUK DIALOG HAPUS ---
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var ratingToDelete by remember { mutableStateOf<Rating?>(null) }
+    // -------------------------------------
 
     Scaffold(
         topBar = {
@@ -188,7 +190,30 @@ fun DetailScreen(
                         } else {
                             currentKost.ratings.sortedByDescending { it.createdAt }.forEach { rating ->
                                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                                    Text("${rating.userName} - ${rating.rating} ★", fontWeight = FontWeight.Bold)
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text("${rating.userName} - ${rating.rating} ★", fontWeight = FontWeight.Bold)
+                                        // --- PERUBAHAN: Tampilkan ikon hapus jika komentar milik user ---
+                                        if (currentUser?.uid == rating.userId) {
+                                            IconButton(
+                                                onClick = {
+                                                    ratingToDelete = rating
+                                                    showDeleteDialog = true
+                                                },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Hapus Komentar",
+                                                    tint = Color.Gray
+                                                )
+                                            }
+                                        }
+                                        // -----------------------------------------------------------------
+                                    }
                                     Text("\"${rating.comment}\"")
 
                                     if (rating.adminReply.isNotBlank()) {
@@ -231,15 +256,13 @@ fun DetailScreen(
                         Button(
                             onClick = {
                                 if (newRating > 0 && newComment.isNotBlank() && currentUser != null) {
-                                    // --- PERBAIKAN: Menambahkan `createdAt` ---
                                     val ratingData = Rating(
                                         userId = currentUser.uid,
                                         userName = (currentUser.displayName ?: currentUser.email ?: "Anonymous"),
                                         rating = newRating,
                                         comment = newComment,
-                                        createdAt = Date() // Menambahkan timestamp saat ini
+                                        createdAt = Date()
                                     )
-                                    // ----------------------------------------
                                     kostViewModel.addRating(currentKost.id, ratingData) { success ->
                                         if (success) {
                                             Toast.makeText(context, "Ulasan terkirim!", Toast.LENGTH_SHORT).show()
@@ -328,6 +351,39 @@ fun DetailScreen(
                 }
             )
         }
+
+        // --- DIALOG BARU UNTUK KONFIRMASI HAPUS ---
+        if (showDeleteDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = { Text("Hapus Komentar") },
+                text = { Text("Apakah Anda yakin ingin menghapus komentar ini?") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            ratingToDelete?.let { rating ->
+                                kostViewModel.deleteRating(kostId, rating) { success ->
+                                    if (success) {
+                                        Toast.makeText(context, "Komentar dihapus", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Gagal menghapus komentar", Toast.LENGTH_SHORT).show()
+                                    }
+                                    showDeleteDialog = false
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Hapus")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text("Batal")
+                    }
+                }
+            )
+        }
+        // ------------------------------------------
     }
 }
 

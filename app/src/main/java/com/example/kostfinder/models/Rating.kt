@@ -8,8 +8,9 @@ data class Rating(
     val userName: String = "",
     val rating: Float = 0f,
     val comment: String = "",
-    // Field baru untuk balasan admin
+    // Field untuk balasan admin
     val adminReply: String = "",
+    // Field untuk timestamp, SANGAT PENTING
     @ServerTimestamp
     val createdAt: Date? = null
 )
