@@ -1,8 +1,13 @@
 package com.example.kostfinder
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.example.kostfinder.models.Kost
+import com.example.kostfinder.models.Rating
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -17,7 +22,6 @@ class KostViewModel : ViewModel() {
     private val _kostList = MutableStateFlow<List<Kost>>(emptyList())
     val kostList = _kostList.asStateFlow()
 
-    // StateFlow baru untuk setiap sesi
     private val _promoKosts = MutableStateFlow<List<Kost>>(emptyList())
     val promoKosts = _promoKosts.asStateFlow()
 
@@ -47,26 +51,51 @@ class KostViewModel : ViewModel() {
             if (snapshot != null) {
                 val allKosts = snapshot.toObjects(Kost::class.java)
                 _kostList.value = allKosts
-
-                // Memproses data untuk setiap sesi
                 _promoKosts.value = allKosts.filter { it.tags.contains("Promo") }
                 _newKosts.value = allKosts.sortedByDescending { it.createdAt }
+
+                // --- PERBAIKAN DI SINI: Menggunakan `it.rating` bukan `it["rating"]` ---
                 _popularKosts.value = allKosts.sortedByDescending { kost ->
-                    kost.ratings.mapNotNull { it["rating"] as? Double }.average()
+                    if (kost.ratings.isEmpty()) 0.0 else kost.ratings.map { it.rating }.average()
                 }
+                // ----------------------------------------------------------------------
             }
             _isLoading.value = false
         }
     }
 
-    fun getKostById(kostId: String) {
+    fun uploadImageToCloudinary(imageUri: Uri, callback: (Result<String>) -> Unit) {
+        _isLoading.value = true
+        MediaManager.get().upload(imageUri)
+            .callback(object : UploadCallback {
+                override fun onStart(requestId: String) { _isLoading.value = true }
+                override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+                override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                    val secureUrl = resultData["secure_url"] as? String
+                    if (secureUrl != null) {
+                        callback(Result.success(secureUrl))
+                    } else {
+                        callback(Result.failure(Exception("URL tidak ditemukan dari Cloudinary.")))
+                    }
+                    _isLoading.value = false
+                }
+                override fun onError(requestId: String, error: ErrorInfo) {
+                    callback(Result.failure(Exception("Gagal mengunggah gambar: ${error.description}")))
+                    _isLoading.value = false
+                }
+                override fun onReschedule(requestId: String, error: ErrorInfo) {}
+            })
+            .dispatch()
+    }
+
+    fun updateKost(kostId: String, updatedKost: Kost, callback: (Boolean, String?) -> Unit) {
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val document = db.collection("kosts").document(kostId).get().await()
-                _selectedKost.value = document.toObject(Kost::class.java)
+                db.collection("kosts").document(kostId).set(updatedKost).await()
+                callback(true, null)
             } catch (e: Exception) {
-                _selectedKost.value = null
+                callback(false, e.message)
             } finally {
                 _isLoading.value = false
             }
@@ -101,11 +130,54 @@ class KostViewModel : ViewModel() {
         }
     }
 
-    fun addRating(kostId: String, rating: Map<String, Any>, onComplete: (Boolean) -> Unit) {
+    fun getKostById(kostId: String) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            db.collection("kosts").document(kostId).addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _selectedKost.value = null
+                    _isLoading.value = false
+                    return@addSnapshotListener
+                }
+                if (snapshot != null && snapshot.exists()) {
+                    _selectedKost.value = snapshot.toObject(Kost::class.java)
+                } else {
+                    _selectedKost.value = null
+                }
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun addRating(kostId: String, rating: Rating, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
                 db.collection("kosts").document(kostId).update("ratings", FieldValue.arrayUnion(rating)).await()
-                getKostById(kostId)
+                onComplete(true)
+            } catch (e: Exception) {
+                onComplete(false)
+            }
+        }
+    }
+
+    fun addAdminReply(kostId: String, ratingToReply: Rating, replyText: String, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val kostRef = db.collection("kosts").document(kostId)
+            try {
+                db.runTransaction { transaction ->
+                    val snapshot = transaction.get(kostRef)
+                    val currentKost = snapshot.toObject(Kost::class.java)
+                    if (currentKost != null) {
+                        val updatedRatings = currentKost.ratings.map { rating ->
+                            if (rating.userId == ratingToReply.userId && rating.createdAt == ratingToReply.createdAt) {
+                                rating.copy(adminReply = replyText)
+                            } else {
+                                rating
+                            }
+                        }
+                        transaction.update(kostRef, "ratings", updatedRatings)
+                    }
+                }.await()
                 onComplete(true)
             } catch (e: Exception) {
                 onComplete(false)
@@ -117,7 +189,6 @@ class KostViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 db.collection("kosts").document(kostId).update("bookedBy", FieldValue.arrayUnion(userId)).await()
-                getKostById(kostId)
                 onComplete(true)
             } catch (e: Exception) {
                 onComplete(false)

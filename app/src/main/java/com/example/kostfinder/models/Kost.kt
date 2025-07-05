@@ -14,12 +14,12 @@ data class Kost(
     val imageUrl: String = "",
     val address: String = "",
     val phone: String = "",
-    val ratings: List<Map<String, Any>> = emptyList(),
+    // PERUBAHAN: Gunakan List<Rating> bukan lagi List<Map<String, Any>>
+    val ratings: List<Rating> = emptyList(),
     var isAvailable: Boolean = true,
     val bookedBy: List<String> = emptyList(),
     val type: String = "Campur",
-    // Field baru untuk sesi rekomendasi
     @ServerTimestamp
-    val createdAt: Date? = null, // Untuk "Baru Ditambahkan"
-    val tags: List<String> = emptyList() // Untuk "Promo Spesial"
+    val createdAt: Date? = null,
+    val tags: List<String> = emptyList()
 )

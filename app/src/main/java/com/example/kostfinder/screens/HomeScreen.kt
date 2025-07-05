@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,8 +35,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import com.example.kostfinder.KostViewModel
+import com.example.kostfinder.R
 import com.example.kostfinder.UserViewModel
 import com.example.kostfinder.models.Kost
 import com.example.kostfinder.models.User
@@ -449,13 +452,15 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column {
-            Image(
-                painter = rememberAsyncImagePainter(model = kost.imageUrl),
+            AsyncImage(
+                model = kost.imageUrl,
                 contentDescription = kost.name,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(R.drawable.ic_placeholder),
+                error = painterResource(R.drawable.ic_error)
             )
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
@@ -466,11 +471,13 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // --- PERBAIKAN DI SINI: Menggunakan `it.rating` bukan `it["rating"]` ---
                     val averageRating = if (kost.ratings.isNotEmpty()) {
-                        kost.ratings.mapNotNull { it["rating"] as? Double }.average()
+                        kost.ratings.map { it.rating }.average()
                     } else {
                         0.0
                     }
+                    // ----------------------------------------------------------------------
                     Icon(Icons.Filled.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
                     Text(
                         text = " ${String.format(Locale.US, "%.1f", averageRating)} | ${kost.location}",

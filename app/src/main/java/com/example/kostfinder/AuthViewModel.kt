@@ -20,6 +20,24 @@ class AuthViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
+    // State untuk menyimpan role pengguna saat ini
+    private val _userRole = MutableStateFlow<String?>(null)
+    val userRole = _userRole.asStateFlow()
+
+    init {
+        // Cek role setiap kali status login berubah
+        auth.addAuthStateListener { firebaseAuth ->
+            val user = firebaseAuth.currentUser
+            if (user != null) {
+                fetchUserRole(user.uid) { role ->
+                    _userRole.value = role
+                }
+            } else {
+                _userRole.value = null
+            }
+        }
+    }
+
     fun registerUser(
         email: String,
         pass: String,

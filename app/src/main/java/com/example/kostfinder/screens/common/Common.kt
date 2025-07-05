@@ -1,6 +1,5 @@
 package com.example.kostfinder.screens.common
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -27,17 +26,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
+import com.example.kostfinder.R
 import com.example.kostfinder.models.Kost
 
 
-/**
- * Komponen Card yang dapat digunakan kembali untuk menampilkan item kost.
- */
 @Composable
 fun KostCardItem(kost: Kost, onClick: () -> Unit) {
     Card(
@@ -51,12 +49,16 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
     ) {
         Column {
             Box(modifier = Modifier.height(180.dp)) {
-                Image(
-                    painter = rememberAsyncImagePainter(model = kost.imageUrl),
+                // --- PERBAIKAN FINAL: Menyederhanakan pemanggilan AsyncImage ---
+                AsyncImage(
+                    model = kost.imageUrl,
                     contentDescription = kost.name,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.ic_placeholder),
+                    error = painterResource(R.drawable.ic_error)
                 )
+                // -------------------------------------------------------------
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -109,9 +111,7 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
     }
 }
 
-/**
- * Komponen Placeholder baru dengan efek shimmer.
- */
+
 @Composable
 fun ShimmerKostCardPlaceholder() {
     Card(
@@ -122,8 +122,7 @@ fun ShimmerKostCardPlaceholder() {
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Column(Modifier) { // Efek shimmer diterapkan di sini
-            // Placeholder untuk gambar
+        Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -131,7 +130,6 @@ fun ShimmerKostCardPlaceholder() {
                     .background(Color.LightGray.copy(alpha = 0.6f))
             )
             Column(modifier = Modifier.padding(16.dp)) {
-                // Placeholder untuk nama kost
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.7f)
@@ -139,7 +137,6 @@ fun ShimmerKostCardPlaceholder() {
                         .background(Color.LightGray.copy(alpha = 0.6f))
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                // Placeholder untuk lokasi
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.5f)
@@ -147,7 +144,6 @@ fun ShimmerKostCardPlaceholder() {
                         .background(Color.LightGray.copy(alpha = 0.6f))
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                // Placeholder untuk harga
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.3f)

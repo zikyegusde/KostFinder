@@ -3,9 +3,11 @@ package com.example.kostfinder.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.kostfinder.AuthViewModel
 import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.UserViewModel
@@ -51,13 +53,10 @@ fun AppNavigation() {
         composable("privacy_policy") {
             PrivacyPolicyScreen(navController)
         }
-
-        // --- TAMBAHKAN RUTE BARU UNTUK EDIT PROFIL DI SINI ---
         composable("editProfile") {
             val user = Firebase.auth.currentUser
             val context = LocalContext.current
 
-            // Jika pengguna tidak login, kembalikan ke halaman login
             if (user == null) {
                 navController.navigate("login") { popUpTo(0) }
             } else {
@@ -65,19 +64,27 @@ fun AppNavigation() {
                     currentName = user.displayName ?: "",
                     currentEmail = user.email ?: "",
                     onSaveClick = { newName, newEmail ->
-                        // Panggil fungsi dari ViewModel untuk update
                         userViewModel.updateUserProfile(newName, newEmail, context) { success ->
                             if (success) {
-                                // Jika berhasil, kembali ke halaman sebelumnya
                                 navController.popBackStack()
                             }
                         }
                     },
                     onCancelClick = {
-                        // Kembali ke halaman sebelumnya
                         navController.popBackStack()
                     }
                 )
+            }
+        }
+        composable(
+            route = "editKost/{kostId}",
+            arguments = listOf(navArgument("kostId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val kostId = backStackEntry.arguments?.getString("kostId")
+            if (kostId != null) {
+                EditKostScreen(navController = navController, kostId = kostId, kostViewModel = kostViewModel)
+            } else {
+                navController.popBackStack()
             }
         }
     }
