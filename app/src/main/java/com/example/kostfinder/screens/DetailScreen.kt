@@ -55,6 +55,8 @@ fun DetailScreen(
     LaunchedEffect(kostId) {
         if (kostId.isNotBlank()) {
             kostViewModel.getKostById(kostId)
+            // Menambahkan kost ini ke daftar "Terakhir Dilihat"
+            userViewModel.addRecentlyViewed(kostId)
         }
     }
 
@@ -143,7 +145,7 @@ fun DetailScreen(
                         if (currentKost.promoPrice != null) {
                             Row(
                                 verticalAlignment = Alignment.Bottom,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp) // Perbaikan: `spacedBy`
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
                                     text = currentKost.promoPrice,
@@ -307,21 +309,16 @@ fun DetailScreen(
             AlertDialog(
                 onDismissRequest = { showBookingDialog = false },
                 title = { Text("Konfirmasi Booking") },
-                text = { Text("Apakah Anda yakin ingin memesan kost ini?") },
+                text = { Text("Apakah Anda yakin ingin memesan ${kost?.name}?") },
                 confirmButton = {
                     TextButton(onClick = {
-                        currentUser?.uid?.let { userId ->
-                            kost?.id?.let { kostId ->
-                                kostViewModel.bookKost(kostId, userId) { success ->
-                                    if (success) {
-                                        Toast.makeText(context, "Booking berhasil!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Gagal melakukan booking.", Toast.LENGTH_SHORT).show()
-                                    }
+                        kost?.let {
+                            userViewModel.bookKost(it, context) { success ->
+                                if (success) {
+                                    showBookingDialog = false
                                 }
                             }
                         }
-                        showBookingDialog = false
                     }) {
                         Text("Konfirmasi")
                     }

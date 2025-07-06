@@ -58,6 +58,25 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
+
+                // ## BANNER PROMO ##
+                if (kost.tags.contains("Promo")) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(12.dp),
+                        color = MaterialTheme.colorScheme.error,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = "PROMO",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
@@ -86,7 +105,6 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // ## PERUBAHAN UNTUK HARGA PROMO ##
                 if (kost.promoPrice != null) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
@@ -110,7 +128,6 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
-                // ## AKHIR PERUBAHAN ##
             }
         }
     }

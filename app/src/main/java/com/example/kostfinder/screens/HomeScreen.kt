@@ -1,10 +1,24 @@
 package com.example.kostfinder.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -13,9 +27,36 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Bed
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Female
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Male
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,16 +86,24 @@ import com.example.kostfinder.models.Kost
 import com.example.kostfinder.models.User
 import com.example.kostfinder.screens.common.KostCardItem
 import com.example.kostfinder.screens.common.ShimmerKostCardPlaceholder
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import java.util.Calendar
 import java.util.Locale
 
-// BottomNavItem dan HomeScreen tidak berubah
+// Data class untuk mempermudah pengelolaan kategori visual
+data class VisualCategory(val name: String, val icon: ImageVector)
+
 data class BottomNavItem(val label: String, val route: String, val icon: ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController: NavController, kostViewModel: KostViewModel = viewModel()) {
+fun HomeScreen(
+    navController: NavController,
+    kostViewModel: KostViewModel = viewModel(),
+    userViewModel: UserViewModel
+) {
     val bottomNavController = rememberNavController()
 
     Scaffold(
@@ -95,15 +144,27 @@ fun HomeScreen(navController: NavController, kostViewModel: KostViewModel = view
                 HomeScreenContent(
                     mainNavController = navController,
                     kostViewModel = kostViewModel,
-                    userViewModel = viewModel()
+                    userViewModel = userViewModel
                 )
             }
             composable("search") { SearchScreen(navController, kostViewModel) }
-            composable("favorites") { FavoritesScreen(onKostClick = { kost -> navController.navigate("detail/${kost.id}") }) }
+            composable("favorites") {
+                FavoritesScreen(
+                    onKostClick = { kost -> navController.navigate("detail/${kost.id}") },
+                    userViewModel = userViewModel
+                )
+            }
             composable("profile") {
+                // ## PERBAIKAN UTAMA ADA DI SINI ##
                 ProfileScreen(
                     navController = navController,
-                    onLogoutClick = {},
+                    onLogoutClick = {
+                        Firebase.auth.signOut()
+                        // Membersihkan backstack dan kembali ke halaman login
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
                     onEditProfileClick = { navController.navigate("editProfile") }
                 )
             }
@@ -126,10 +187,7 @@ fun HomeScreenContent(
     var selectedCategory by remember { mutableStateOf("Semua") }
     var selectedKabupaten by remember { mutableStateOf<String?>(null) }
 
-
-    val categories = listOf("Semua", "Kabupaten", "Putra", "Putri", "Campur")
     val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
-
 
     val filteredList = remember(selectedCategory, selectedKabupaten, allKosts) {
         when {
@@ -143,7 +201,6 @@ fun HomeScreenContent(
             else -> allKosts
         }
     }
-
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -161,50 +218,57 @@ fun HomeScreenContent(
             AutoSlidingCarousel(imageUrls = imageUrls)
         }
 
-
         item {
-            CategoryChips(
-                categories = categories,
+            VisualCategorySection(
                 selectedCategory = selectedCategory,
-                onCategorySelected = {
-                    selectedCategory = it
-                    if (it != "Kabupaten") {
-                        selectedKabupaten = null
-                    }
+                onCategorySelected = { categoryName ->
+                    selectedCategory = categoryName
+                    selectedKabupaten = null
                 },
-                kabupatenOptions = kabupatenOptions,
                 selectedKabupaten = selectedKabupaten,
-                onKabupatenSelected = {
-                    selectedKabupaten = it
+                onKabupatenSelected = { kabupatenName ->
+                    selectedKabupaten = kabupatenName
                     selectedCategory = "Kabupaten"
-                }
+                },
+                kabupatenOptions = kabupatenOptions
             )
         }
-
 
         if (selectedCategory == "Semua" && selectedKabupaten == null) {
             item {
                 RecommendationSession(
                     title = "Promo Spesial",
+                    listType = "promo",
                     kosts = promoKosts,
                     isLoading = isLoading,
-                    onKostClick = { mainNavController.navigate("detail/${it.id}") }
+                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                    onSeeAllClick = { listType ->
+                        mainNavController.navigate("full_kost_list/$listType")
+                    }
                 )
             }
             item {
                 RecommendationSession(
                     title = "Kost Populer",
+                    listType = "popular",
                     kosts = popularKosts,
                     isLoading = isLoading,
-                    onKostClick = { mainNavController.navigate("detail/${it.id}") }
+                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                    onSeeAllClick = { listType ->
+                        mainNavController.navigate("full_kost_list/$listType")
+                    }
                 )
             }
             item {
                 RecommendationSession(
                     title = "Baru Ditambahkan",
+                    listType = "new",
                     kosts = newKosts,
                     isLoading = isLoading,
-                    onKostClick = { mainNavController.navigate("detail/${it.id}") }
+                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                    onSeeAllClick = { listType ->
+                        mainNavController.navigate("full_kost_list/$listType")
+                    }
                 )
             }
         } else {
@@ -239,7 +303,131 @@ fun HomeScreenContent(
     }
 }
 
-// GreetingHeader, AutoSlidingCarousel, CategoryChips, dan RecommendationSession tidak berubah
+@Composable
+fun VisualCategorySection(
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit,
+    selectedKabupaten: String?,
+    onKabupatenSelected: (String) -> Unit,
+    kabupatenOptions: List<String>
+) {
+    val visualCategories = listOf(
+        VisualCategory("Putra", Icons.Default.Male),
+        VisualCategory("Putri", Icons.Default.Female),
+        VisualCategory("Campur", Icons.Default.Bed)
+    )
+
+    Column {
+        Text(
+            text = "Kategori Pilihan",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(visualCategories) { category ->
+                VisualCategoryCard(
+                    category = category,
+                    isSelected = selectedCategory == category.name,
+                    onClick = { onCategorySelected(category.name) }
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selectedCategory == "Semua",
+                onClick = { onCategorySelected("Semua") },
+                label = { Text("Tampilkan Semua") }
+            )
+            KabupatenFilter(
+                selectedKabupaten = selectedKabupaten,
+                onKabupatenSelected = onKabupatenSelected,
+                kabupatenOptions = kabupatenOptions
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VisualCategoryCard(
+    category: VisualCategory,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.width(100.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer) else null
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = category.name,
+                modifier = Modifier.size(32.dp),
+                tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = category.name,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KabupatenFilter(
+    selectedKabupaten: String?,
+    onKabupatenSelected: (String) -> Unit,
+    kabupatenOptions: List<String>
+) {
+    var kabupatenExpanded by remember { mutableStateOf(false) }
+
+    Box {
+        FilterChip(
+            selected = selectedKabupaten != null,
+            onClick = { kabupatenExpanded = true },
+            label = { Text(selectedKabupaten ?: "Pilih Kabupaten") },
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) }
+        )
+        DropdownMenu(
+            expanded = kabupatenExpanded,
+            onDismissRequest = { kabupatenExpanded = false }
+        ) {
+            kabupatenOptions.forEach { kabupaten ->
+                DropdownMenuItem(
+                    text = { Text(kabupaten) },
+                    onClick = {
+                        onKabupatenSelected(kabupaten)
+                        kabupatenExpanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun GreetingHeader(user: User?) {
     val calendar = Calendar.getInstance()
@@ -329,102 +517,33 @@ fun AutoSlidingCarousel(imageUrls: List<String>) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun CategoryChips(
-    categories: List<String>,
-    selectedCategory: String,
-    onCategorySelected: (String) -> Unit,
-    kabupatenOptions: List<String>,
-    selectedKabupaten: String?,
-    onKabupatenSelected: (String) -> Unit
-) {
-    var kabupatenExpanded by remember { mutableStateOf(false) }
-
-
-    Column {
-        Text(
-            text = "Kategori Pilihan",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(categories) { category ->
-                if (category == "Kabupaten") {
-                    Box {
-                        FilterChip(
-                            selected = selectedCategory == "Kabupaten",
-                            onClick = {
-                                onCategorySelected("Kabupaten")
-                                kabupatenExpanded = true
-                            },
-                            label = { Text(selectedKabupaten ?: "Kabupaten") },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            ),
-                            leadingIcon = if (selectedCategory == "Kabupaten") {
-                                { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
-                            } else {
-                                null
-                            }
-                        )
-                        DropdownMenu(
-                            expanded = kabupatenExpanded,
-                            onDismissRequest = { kabupatenExpanded = false }
-                        ) {
-                            kabupatenOptions.forEach { kabupaten ->
-                                DropdownMenuItem(
-                                    text = { Text(kabupaten) },
-                                    onClick = {
-                                        onKabupatenSelected(kabupaten)
-                                        kabupatenExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    val isSelected = category == selectedCategory
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { onCategorySelected(category) },
-                        label = { Text(category) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
-                        ),
-                        leadingIcon = if (isSelected) {
-                            { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
-                        } else {
-                            null
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun RecommendationSession(
     title: String,
+    listType: String,
     kosts: List<Kost>,
     isLoading: Boolean,
-    onKostClick: (Kost) -> Unit
+    onKostClick: (Kost) -> Unit,
+    onSeeAllClick: (String) -> Unit
 ) {
     if (isLoading || kosts.isNotEmpty()) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                )
+                TextButton(onClick = { onSeeAllClick(listType) }) {
+                    Text("Lihat Semua")
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -444,7 +563,6 @@ fun RecommendationSession(
     }
 }
 
-// ## PERUBAHAN PADA HorizontalKostCard ##
 @Composable
 fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
     Card(
@@ -454,64 +572,84 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Column {
-            AsyncImage(
-                model = kost.imageUrl,
-                contentDescription = kost.name,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(R.drawable.ic_placeholder),
-                error = painterResource(R.drawable.ic_error)
-            )
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = kost.name,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+        Box {
+            Column {
+                AsyncImage(
+                    model = kost.imageUrl,
+                    contentDescription = kost.name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.ic_placeholder),
+                    error = painterResource(R.drawable.ic_error)
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val averageRating = if (kost.ratings.isNotEmpty()) {
-                        kost.ratings.map { it.rating }.average()
-                    } else {
-                        0.0
-                    }
-                    Icon(Icons.Filled.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
+                Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        text = " ${String.format(Locale.US, "%.1f", averageRating)} | ${kost.location}",
-                        fontSize = 12.sp,
-                        color = Color.Gray
+                        text = kost.name,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        val averageRating = if (kost.ratings.isNotEmpty()) {
+                            kost.ratings.map { it.rating }.average()
+                        } else {
+                            0.0
+                        }
+                        Icon(Icons.Filled.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
+                        Text(
+                            text = " ${String.format(Locale.US, "%.1f", averageRating)} | ${kost.location}",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // ## PERUBAHAN UNTUK HARGA PROMO ##
-                if (kost.promoPrice != null) {
-                    Column {
+                    if (kost.promoPrice != null) {
+                        Column {
+                            Text(
+                                text = kost.price,
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                textDecoration = TextDecoration.LineThrough
+                            )
+                            Text(
+                                text = kost.promoPrice,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else {
                         Text(
                             text = kost.price,
-                            fontSize = 12.sp,
-                            color = Color.Gray,
-                            textDecoration = TextDecoration.LineThrough
-                        )
-                        Text(
-                            text = kost.promoPrice,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                } else {
-                    Text(
-                        text = kost.price,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
-                // ## AKHIR PERUBAHAN ##
+            }
+            if (kost.tags.contains("Promo")) {
+                PromoBanner()
             }
         }
+    }
+}
+
+@Composable
+fun BoxScope.PromoBanner() {
+    Surface(
+        color = MaterialTheme.colorScheme.error,
+        shape = RoundedCornerShape(bottomEnd = 8.dp),
+        modifier = Modifier.align(Alignment.TopStart)
+    ) {
+        Text(
+            text = "PROMO",
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }

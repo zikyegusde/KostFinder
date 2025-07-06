@@ -1,6 +1,8 @@
 package com.example.kostfinder.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -12,12 +14,11 @@ import com.example.kostfinder.AuthViewModel
 import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.UserViewModel
 import com.example.kostfinder.screens.*
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    // ViewModels yang akan dibagikan
     val kostViewModel: KostViewModel = viewModel()
     val authViewModel: AuthViewModel = viewModel()
     val userViewModel: UserViewModel = viewModel()
@@ -33,7 +34,8 @@ fun AppNavigation() {
             RegisterScreen(navController, authViewModel)
         }
         composable("home") {
-            HomeScreen(navController, kostViewModel)
+            // ## PERUBAHAN: Mengirim userViewModel ke HomeScreen ##
+            HomeScreen(navController, kostViewModel, userViewModel)
         }
         composable("admin") {
             AdminScreen(navController, kostViewModel)
@@ -41,7 +43,7 @@ fun AppNavigation() {
         composable("detail/{kostId}") { backStackEntry ->
             val kostId = backStackEntry.arguments?.getString("kostId")
             if (kostId != null) {
-                DetailScreen(kostId, navController, kostViewModel, userViewModel)
+                DetailScreen(kostId, navController, kostViewModel, userViewModel, authViewModel)
             }
         }
         composable("about") {
@@ -53,16 +55,32 @@ fun AppNavigation() {
         composable("privacy_policy") {
             PrivacyPolicyScreen(navController)
         }
+        composable("booking_history") {
+            BookingHistoryScreen(navController, userViewModel)
+        }
+        composable("my_reviews") {
+            MyReviewsScreen(navController, kostViewModel)
+        }
+
+        composable(
+            route = "full_kost_list/{listType}",
+            arguments = listOf(navArgument("listType") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val listType = backStackEntry.arguments?.getString("listType")
+            FullKostListScreen(navController = navController, listType = listType, kostViewModel = kostViewModel)
+        }
+
         composable("editProfile") {
-            val user = Firebase.auth.currentUser
+            val userData by userViewModel.userData.collectAsState()
             val context = LocalContext.current
 
-            if (user == null) {
+            if (userData == null) {
                 navController.navigate("login") { popUpTo(0) }
             } else {
                 EditProfileScreen(
-                    currentName = user.displayName ?: "",
-                    currentEmail = user.email ?: "",
+                    currentName = userData?.name ?: "",
+                    currentEmail = userData?.email ?: "",
+                    currentImageUrl = userData?.profileImageUrl,
                     onSaveClick = { newName, newEmail ->
                         userViewModel.updateUserProfile(newName, newEmail, context) { success ->
                             if (success) {
@@ -72,7 +90,8 @@ fun AppNavigation() {
                     },
                     onCancelClick = {
                         navController.popBackStack()
-                    }
+                    },
+                    userViewModel = userViewModel
                 )
             }
         }
