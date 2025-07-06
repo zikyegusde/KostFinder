@@ -28,19 +28,18 @@ import com.example.kostfinder.screens.common.ShimmerKostCardPlaceholder
 @Composable
 fun FavoritesScreen(
     onKostClick: (Kost) -> Unit,
-    userViewModel: UserViewModel, // ## PERBAIKAN: Hapus '= viewModel()' ##
-    kostViewModel: KostViewModel = viewModel() // kostViewModel bisa tetap karena tidak dimodifikasi
+    userViewModel: UserViewModel,
+    kostViewModel: KostViewModel = viewModel()
 ) {
     val userData by userViewModel.userData.collectAsState()
     val allKosts by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
 
-    // 1. Data untuk "Favorit Saya"
     val favoriteKostIds = userData?.favoriteKostIds ?: emptyList()
     val favoriteKosts = allKosts.filter { it.id in favoriteKostIds }
 
-    // 2. Data untuk "Terakhir Dilihat"
-    val recentlyViewedIds by userViewModel.recentlyViewedIds.collectAsState()
+    // ## PERBAIKAN: Ambil data dari userData ##
+    val recentlyViewedIds = userData?.recentlyViewedIds ?: emptyList()
     val recentlyViewedKosts = recentlyViewedIds.mapNotNull { id ->
         allKosts.find { it.id == id }
     }
@@ -71,7 +70,6 @@ fun FavoritesScreen(
                 contentPadding = PaddingValues(vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // ## BAGIAN FAVORIT ##
                 item {
                     SectionTitle(title = "Favorit Saya")
                 }
@@ -85,12 +83,10 @@ fun FavoritesScreen(
                     }
                 }
 
-                // Pemisah
                 item {
                     Divider(modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp))
                 }
 
-                // ## BAGIAN TERAKHIR DILIHAT ##
                 item {
                     SectionTitle(title = "Terakhir Dilihat")
                 }

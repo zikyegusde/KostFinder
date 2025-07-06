@@ -1,11 +1,9 @@
 package com.example.kostfinder
 
-import android.app.Application // ## PERUBAHAN 1: Import Application ##
 import android.content.Context
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
-import androidx.lifecycle.AndroidViewModel // ## PERUBAHAN 2: Ganti ViewModel menjadi AndroidViewModel ##
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.kostfinder.models.Booking
@@ -18,24 +16,16 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
-// ## PERUBAHAN 3: Ubah class declaration ##
-class UserViewModel(application: Application) : AndroidViewModel(application) {
+class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
     private val db = Firebase.firestore
     private val auth = Firebase.auth
 
-    // ## PERUBAHAN 4: Inisialisasi Repository ##
-    private val recentlyViewedRepository = RecentlyViewedRepository(application)
-
     private val _userData = MutableStateFlow<User?>(null)
     val userData: StateFlow<User?> = _userData
-
-    private val _recentlyViewedIds = MutableStateFlow<List<String>>(emptyList())
-    val recentlyViewedIds: StateFlow<List<String>> = _recentlyViewedIds.asStateFlow()
 
     init {
         auth.addAuthStateListener { firebaseAuth ->
@@ -46,8 +36,6 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
                 _userData.value = null
             }
         }
-        // ## PERUBAHAN 5: Muat data saat ViewModel dibuat ##
-        loadRecentlyViewed()
     }
 
     private fun fetchUserData(uid: String) {
@@ -63,20 +51,20 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // ## FUNGSI BARU UNTUK MEMUAT DATA ##
-    private fun loadRecentlyViewed() {
-        _recentlyViewedIds.value = recentlyViewedRepository.getRecentlyViewed()
-    }
-
     fun addRecentlyViewed(kostId: String) {
-        val currentList = _recentlyViewedIds.value.toMutableList()
+        val user = auth.currentUser ?: return
+        val currentList = _userData.value?.recentlyViewedIds?.toMutableList() ?: mutableListOf()
+
         currentList.remove(kostId)
         currentList.add(0, kostId)
         val updatedList = currentList.take(10)
 
-        _recentlyViewedIds.value = updatedList
-        // ## PERUBAHAN 6: Simpan ke SharedPreferences ##
-        recentlyViewedRepository.saveRecentlyViewed(updatedList)
+        // Simpan ke Firestore
+        db.collection("users").document(user.uid)
+            .update("recentlyViewedIds", updatedList)
+            .addOnFailureListener { e ->
+                Log.e("UserViewModel", "Failed to update recently viewed: ${e.message}")
+            }
     }
 
     fun toggleFavorite(kostId: String, context: Context) {

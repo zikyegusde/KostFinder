@@ -7,5 +7,6 @@ data class User(
     val role: String = "user",
     val profileImageUrl: String? = null,
     val favoriteKostIds: List<String> = emptyList(),
-    val bookings: List<Booking> = emptyList()
+    val bookings: List<Booking> = emptyList(),
+    val recentlyViewedIds: List<String> = emptyList() // ## TAMBAHKAN BARIS INI ##
 )
