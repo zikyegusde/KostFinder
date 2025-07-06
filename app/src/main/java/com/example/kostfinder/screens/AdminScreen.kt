@@ -83,9 +83,10 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
     var alamatKost by remember { mutableStateOf("") }
     var teleponKost by remember { mutableStateOf("") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var hargaPromo by remember { mutableStateOf("") }
 
     var periodeExpanded by remember { mutableStateOf(false) }
-    var selectedPeriode by remember { mutableStateOf("Bulan") }
+    var selectedPeriode by remember { mutableStateOf("Bulan") } // Perbaikan: `mutableStateOf`
     val periodeOptions = listOf("Bulan", "Tahun")
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -287,6 +288,21 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                     Checkbox(checked = isPromo, onCheckedChange = { isPromo = it })
                     Text("Tandai sebagai Promo Spesial")
                 }
+                if (isPromo) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = hargaPromo,
+                        onValueChange = { newValue ->
+                            if (newValue.all { it.isDigit() }) {
+                                hargaPromo = newValue
+                            }
+                        },
+                        label = { Text("Harga Promo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        visualTransformation = CurrencyVisualTransformation()
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
@@ -301,10 +317,16 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                                 result.onSuccess { downloadUrl ->
                                     val tags = if (isPromo) listOf("Promo") else emptyList()
                                     val priceWithPeriod = "${CurrencyVisualTransformation().filter(AnnotatedString(hargaKost)).text} / $selectedPeriode"
+                                    val promoPriceValue = if (isPromo && hargaPromo.isNotBlank()) {
+                                        "${CurrencyVisualTransformation().filter(AnnotatedString(hargaPromo)).text} / $selectedPeriode"
+                                    } else {
+                                        null
+                                    }
                                     val newKost = Kost(
                                         name = namaKost,
                                         location = selectedKabupaten,
                                         price = priceWithPeriod,
+                                        promoPrice = promoPriceValue,
                                         description = deskripsiKost,
                                         address = alamatKost,
                                         phone = teleponKost,
@@ -316,7 +338,14 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                                     kostViewModel.addKost(newKost) { success, error ->
                                         if (success) {
                                             Toast.makeText(context, "Kost berhasil ditambahkan", Toast.LENGTH_SHORT).show()
-                                            namaKost = ""; hargaKost = ""; alamatKost = ""; teleponKost = ""; deskripsiKost = ""; imageUri = null; isPromo = false
+                                            namaKost = ""
+                                            hargaKost = ""
+                                            alamatKost = ""
+                                            teleponKost = ""
+                                            deskripsiKost = ""
+                                            imageUri = null
+                                            isPromo = false
+                                            hargaPromo = "" // Perbaikan: reset hargaPromo
                                         } else {
                                             Toast.makeText(context, "Gagal menyimpan data: $error", Toast.LENGTH_LONG).show()
                                         }
@@ -343,7 +372,6 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                 item { CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
             } else {
                 items(kostList) { kost ->
-                    // --- PERBAIKAN: Menambahkan `clickable` pada Card ---
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -351,7 +379,6 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                             .clickable { navController.navigate("detail/${kost.id}") },
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
-                        // ----------------------------------------------------
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically

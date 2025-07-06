@@ -54,9 +54,21 @@ class KostViewModel : ViewModel() {
                 _promoKosts.value = allKosts.filter { it.tags.contains("Promo") }
                 _newKosts.value = allKosts.sortedByDescending { it.createdAt }
 
-                _popularKosts.value = allKosts.sortedByDescending { kost ->
-                    if (kost.ratings.isEmpty()) 0.0 else kost.ratings.map { it.rating }.average()
-                }
+                // ## PERUBAHAN LOGIKA KOST POPULER ##
+                _popularKosts.value = allKosts
+                    .map { kost ->
+                        // Menghitung rata-rata rating untuk setiap kost
+                        val avgRating = if (kost.ratings.isEmpty()) 0.0 else kost.ratings.map { it.rating }.average()
+                        // Membuat pasangan antara objek Kost dan rata-rata ratingnya
+                        Pair(kost, avgRating)
+                    }
+                    // Menyaring hanya kost dengan rating antara 4.0 dan 5.0
+                    .filter { it.second >= 4.0 && it.second <= 5.0 }
+                    // Mengurutkan hasil filter dari rating tertinggi
+                    .sortedByDescending { it.second }
+                    // Mengambil kembali hanya objek Kost setelah diurutkan
+                    .map { it.first }
+                // ## AKHIR PERUBAHAN ##
             }
             _isLoading.value = false
         }
@@ -194,7 +206,6 @@ class KostViewModel : ViewModel() {
         }
     }
 
-    // --- FUNGSI BARU UNTUK MENGHAPUS KOMENTAR ---
     fun deleteRating(kostId: String, rating: Rating, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch {
             try {
@@ -207,5 +218,4 @@ class KostViewModel : ViewModel() {
             }
         }
     }
-    // ---------------------------------------------
 }

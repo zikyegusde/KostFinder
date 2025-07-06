@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +49,7 @@ import kotlinx.coroutines.delay
 import java.util.Calendar
 import java.util.Locale
 
+// BottomNavItem dan HomeScreen tidak berubah
 data class BottomNavItem(val label: String, val route: String, val icon: ImageVector)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -237,6 +239,7 @@ fun HomeScreenContent(
     }
 }
 
+// GreetingHeader, AutoSlidingCarousel, CategoryChips, dan RecommendationSession tidak berubah
 @Composable
 fun GreetingHeader(user: User?) {
     val calendar = Calendar.getInstance()
@@ -407,7 +410,6 @@ fun CategoryChips(
     }
 }
 
-
 @Composable
 fun RecommendationSession(
     title: String,
@@ -442,6 +444,7 @@ fun RecommendationSession(
     }
 }
 
+// ## PERUBAHAN PADA HorizontalKostCard ##
 @Composable
 fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
     Card(
@@ -471,13 +474,11 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // --- PERBAIKAN DI SINI: Menggunakan `it.rating` bukan `it["rating"]` ---
                     val averageRating = if (kost.ratings.isNotEmpty()) {
                         kost.ratings.map { it.rating }.average()
                     } else {
                         0.0
                     }
-                    // ----------------------------------------------------------------------
                     Icon(Icons.Filled.Star, contentDescription = "Rating", tint = Color(0xFFFFC107), modifier = Modifier.size(16.dp))
                     Text(
                         text = " ${String.format(Locale.US, "%.1f", averageRating)} | ${kost.location}",
@@ -486,11 +487,30 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = kost.price,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+
+                // ## PERUBAHAN UNTUK HARGA PROMO ##
+                if (kost.promoPrice != null) {
+                    Column {
+                        Text(
+                            text = kost.price,
+                            fontSize = 12.sp,
+                            color = Color.Gray,
+                            textDecoration = TextDecoration.LineThrough
+                        )
+                        Text(
+                            text = kost.promoPrice,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {
+                    Text(
+                        text = kost.price,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+                // ## AKHIR PERUBAHAN ##
             }
         }
     }

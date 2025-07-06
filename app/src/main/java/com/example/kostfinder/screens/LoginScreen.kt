@@ -1,19 +1,50 @@
 package com.example.kostfinder.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bed
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -21,6 +52,8 @@ import com.example.kostfinder.AuthViewModel
 import com.example.kostfinder.R
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 @Composable
 fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
@@ -28,97 +61,166 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-    val auth = Firebase.auth
     val context = LocalContext.current
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(MaterialTheme.colorScheme.surface)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.logo),
-            contentDescription = "Logo KostFinder",
-            modifier = Modifier
-                .size(120.dp)
-                .padding(bottom = 16.dp)
-        )
-        Text("Login", style = MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(24.dp))
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Password") },
-            modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true
-        )
-        Spacer(modifier = Modifier.height(24.dp))
+        IconBackground()
 
-        if (isLoading) {
-            CircularProgressIndicator()
-        } else {
-            Button(
-                onClick = {
-                    if (email.isBlank() || password.isBlank()) {
-                        errorMessage = "Email dan password wajib diisi"
-                        return@Button
-                    }
-                    isLoading = true
-                    auth.signInWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val uid = auth.currentUser?.uid
-                                if (uid != null) {
-                                    // Ambil peran pengguna dari Firestore
-                                    authViewModel.fetchUserRole(uid) { role ->
-                                        isLoading = false
-                                        val destination = if (role == "admin") "admin" else "home"
-                                        navController.navigate(destination) {
-                                            // Hapus semua halaman sebelumnya dari back stack
-                                            popUpTo(0) { inclusive = true }
-                                        }
-                                    }
-                                } else {
-                                    // Seharusnya tidak terjadi jika login berhasil
-                                    isLoading = false
-                                    navController.navigate("home") { popUpTo(0) { inclusive = true } }
-                                }
-                            } else {
-                                isLoading = false
-                                errorMessage = "Login gagal: ${task.exception?.message}"
-                            }
-                        }
-                },
-                modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Column(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Masuk")
+                Image(
+                    painter = painterResource(id = R.drawable.logo),
+                    contentDescription = "Logo KostFinder",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .padding(bottom = 16.dp)
+                )
+                Text("Login", style = MaterialTheme.typography.headlineLarge)
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    modifier = Modifier.fillMaxWidth(),
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+
+                if (isLoading) {
+                    CircularProgressIndicator()
+                } else {
+                    Button(
+                        onClick = {
+                            if (email.isBlank() || password.isBlank()) {
+                                errorMessage = "Email dan password wajib diisi"
+                                return@Button
+                            }
+                            isLoading = true
+                            Firebase.auth.signInWithEmailAndPassword(email, password)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        val uid = Firebase.auth.currentUser?.uid
+                                        if (uid != null) {
+                                            authViewModel.fetchUserRole(uid) { role ->
+                                                isLoading = false
+                                                val destination = if (role == "admin") "admin" else "home"
+                                                navController.navigate(destination) {
+                                                    popUpTo(0) { inclusive = true }
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        isLoading = false
+                                        errorMessage = "Login gagal: ${task.exception?.message}"
+                                    }
+                                }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Masuk")
+                    }
+                }
+
+                if (errorMessage.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                ClickableText(
+                    text = AnnotatedString("Belum punya akun? Daftar di sini"),
+                    onClick = { navController.navigate("register") },
+                    style = TextStyle(
+                        color = MaterialTheme.colorScheme.primary,
+                        textDecoration = TextDecoration.Underline
+                    )
+                )
             }
         }
-
-        if (errorMessage.isNotBlank()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        ClickableText(
-            text = AnnotatedString("Belum punya akun? Daftar di sini"),
-            onClick = { navController.navigate("register") },
-            style = TextStyle(
-                color = MaterialTheme.colorScheme.primary,
-                textDecoration = TextDecoration.Underline
-            )
-        )
     }
 }
+
+
+@Composable
+fun IconBackground() {
+    val icons = listOf(Icons.Default.Key, Icons.Default.Bed, Icons.Default.LocationOn, Icons.Default.Shield)
+    // Mengambil konfigurasi layar untuk mendapatkan ukuran
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val screenHeightDp = configuration.screenHeightDp.dp
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Hasilkan 25 ikon
+        repeat(25) { index ->
+            // ## PERBAIKAN UTAMA: Menggunakan key dan nilai Dp acak ##
+            val iconData = remember(key1 = index) {
+                IconData(
+                    icon = icons.random(),
+                    x = (Random.nextFloat() * screenWidthDp.value).dp,
+                    y = (Random.nextFloat() * screenHeightDp.value).dp,
+                    size = Dp(Random.nextInt(25, 55).toFloat()),
+                    rotation = Random.nextFloat() * 360f
+                )
+            }
+            BackgroundIcon(iconData)
+        }
+    }
+}
+
+@Composable
+fun BackgroundIcon(data: IconData) {
+    var currentRotation by remember { mutableStateOf(data.rotation) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentRotation += 0.1f
+            delay(100)
+        }
+    }
+
+    Icon(
+        imageVector = data.icon,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+        modifier = Modifier
+            .size(data.size)
+            .offset(x = data.x, y = data.y)
+            .rotate(currentRotation)
+            .alpha(0.5f)
+    )
+}
+
+// ## PERBAIKAN: Menyimpan posisi dalam Dp ##
+data class IconData(
+    val icon: ImageVector,
+    val x: Dp,
+    val y: Dp,
+    val size: Dp,
+    val rotation: Float
+)

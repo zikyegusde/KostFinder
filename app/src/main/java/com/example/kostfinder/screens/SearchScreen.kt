@@ -58,29 +58,23 @@ fun SearchScreen(navController: NavController, kostViewModel: KostViewModel = vi
         // 1. Filter berdasarkan teks pencarian
         if (searchQuery.isNotBlank()) {
             val query = searchQuery.lowercase(Locale.getDefault())
-
-            // PERBAIKAN: Menambahkan logika khusus saat pengguna mengetik "kos murah"
-            if (query == "kos murah") {
-                result = result.filter { kost ->
-                    val priceValue = parsePrice(kost.price)
-                    priceValue > 0 && priceValue <= 1_000_000
-                }
-            } else {
-                // Logika pencarian teks biasa untuk kata kunci lainnya
-                result = result.filter {
-                    it.name.lowercase(Locale.getDefault()).contains(query) ||
-                            it.location.lowercase(Locale.getDefault()).contains(query) ||
-                            it.address.lowercase(Locale.getDefault()).contains(query) ||
-                            it.type.lowercase(Locale.getDefault()).contains(query)
-                }
+            result = result.filter {
+                it.name.lowercase(Locale.getDefault()).contains(query) ||
+                        it.location.lowercase(Locale.getDefault()).contains(query) ||
+                        it.address.lowercase(Locale.getDefault()).contains(query) ||
+                        it.type.lowercase(Locale.getDefault()).contains(query)
             }
         }
 
         // 2. Filter berdasarkan kategori chip
         result = when (selectedCategory) {
             "Kos Murah" -> result.filter { kost ->
-                val priceValue = parsePrice(kost.price)
+                // ## PERUBAHAN LOGIKA HARGA MURAH ##
+                // Cek harga promo dulu, jika tidak ada, baru cek harga asli.
+                val priceToCheck = kost.promoPrice ?: kost.price
+                val priceValue = parsePrice(priceToCheck)
                 priceValue > 0 && priceValue <= 1_000_000
+                // ## AKHIR PERUBAHAN ##
             }
             "Putra", "Putri", "Campur" -> result.filter { it.type.equals(selectedCategory, ignoreCase = true) }
             "Kabupaten" -> {

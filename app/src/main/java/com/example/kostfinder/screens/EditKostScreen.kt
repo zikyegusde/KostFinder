@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,12 +78,11 @@ fun EditKostScreen(
     var selectedStatus by remember { mutableStateOf("Tersedia") }
     var selectedType by remember { mutableStateOf("Campur") }
     var isPromo by remember { mutableStateOf(false) }
+    var hargaPromo by remember { mutableStateOf("") } // Tambahan baru
 
-    // --- State untuk periode harga ---
     var periodeExpanded by remember { mutableStateOf(false) }
     var selectedPeriode by remember { mutableStateOf("Bulan") }
     val periodeOptions = listOf("Bulan", "Tahun")
-    // ------------------------------------
 
     var kabupatenExpanded by remember { mutableStateOf(false) }
     val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
@@ -101,10 +101,12 @@ fun EditKostScreen(
             namaKost = kost.name
             deskripsiKost = kost.description
 
-            // Memisahkan harga dan periode
             val priceParts = kost.price.split("/")
             hargaKost = priceParts.getOrNull(0)?.filter { it.isDigit() } ?: ""
             selectedPeriode = priceParts.getOrNull(1)?.trim() ?: "Bulan"
+
+            // Perubahan: Muat data harga promo
+            hargaPromo = kost.promoPrice?.filter { it.isDigit() } ?: ""
 
             alamatKost = kost.address
             teleponKost = kost.phone
@@ -170,7 +172,6 @@ fun EditKostScreen(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // --- Kolom Harga dengan Periode ---
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedTextField(
                         value = hargaKost,
@@ -209,7 +210,6 @@ fun EditKostScreen(
                         }
                     }
                 }
-                // ----------------------------------
 
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(value = alamatKost, onValueChange = { alamatKost = it }, label = { Text("Alamat Lengkap") }, modifier = Modifier.fillMaxWidth())
@@ -246,16 +246,46 @@ fun EditKostScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
 
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isPromo, onCheckedChange = { isPromo = it })
+                    Text("Tandai sebagai Promo Spesial")
+                }
+
+                if (isPromo) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = hargaPromo,
+                        onValueChange = { newValue ->
+                            if (newValue.all { it.isDigit() }) {
+                                hargaPromo = newValue
+                            }
+                        },
+                        label = { Text("Harga Promo") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        visualTransformation = CurrencyVisualTransformation()
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Button(
                     onClick = {
                         val processUpdate = { imageUrl: String ->
                             val tags = if (isPromo) listOf("Promo") else emptyList()
                             val priceWithPeriod = "${CurrencyVisualTransformation().filter(AnnotatedString(hargaKost)).text} / ${selectedPeriode}"
+                            // Perubahan: Logika untuk harga promo
+                            val promoPriceValue = if (isPromo && hargaPromo.isNotBlank()) {
+                                "${CurrencyVisualTransformation().filter(AnnotatedString(hargaPromo)).text} / $selectedPeriode"
+                            } else {
+                                null
+                            }
+
                             val updatedKost = Kost(
                                 id = kostId,
                                 name = namaKost,
                                 location = selectedKabupaten,
                                 price = priceWithPeriod,
+                                promoPrice = promoPriceValue, // Perubahan
                                 description = deskripsiKost,
                                 address = alamatKost,
                                 phone = teleponKost,

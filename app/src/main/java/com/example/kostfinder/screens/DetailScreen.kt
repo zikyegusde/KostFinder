@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -71,10 +72,8 @@ fun DetailScreen(
     var selectedRatingForReply by remember { mutableStateOf<Rating?>(null) }
     var replyText by remember { mutableStateOf("") }
 
-    // --- STATE BARU UNTUK DIALOG HAPUS ---
     var showDeleteDialog by remember { mutableStateOf(false) }
     var ratingToDelete by remember { mutableStateOf<Rating?>(null) }
-    // -------------------------------------
 
     Scaffold(
         topBar = {
@@ -141,7 +140,28 @@ fun DetailScreen(
                         Text(currentKost.location, style = MaterialTheme.typography.titleMedium, color = Color.Gray)
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Text(currentKost.price, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                        if (currentKost.promoPrice != null) {
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp) // Perbaikan: `spacedBy`
+                            ) {
+                                Text(
+                                    text = currentKost.promoPrice,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = currentKost.price,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color.Gray,
+                                    textDecoration = TextDecoration.LineThrough
+                                )
+                            }
+                        } else {
+                            Text(currentKost.price, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                        }
+
                         Spacer(modifier = Modifier.height(16.dp))
 
                         Divider()
@@ -196,7 +216,6 @@ fun DetailScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text("${rating.userName} - ${rating.rating} ★", fontWeight = FontWeight.Bold)
-                                        // --- PERUBAHAN: Tampilkan ikon hapus jika komentar milik user ---
                                         if (currentUser?.uid == rating.userId) {
                                             IconButton(
                                                 onClick = {
@@ -212,7 +231,6 @@ fun DetailScreen(
                                                 )
                                             }
                                         }
-                                        // -----------------------------------------------------------------
                                     }
                                     Text("\"${rating.comment}\"")
 
@@ -352,7 +370,6 @@ fun DetailScreen(
             )
         }
 
-        // --- DIALOG BARU UNTUK KONFIRMASI HAPUS ---
         if (showDeleteDialog) {
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
@@ -383,7 +400,6 @@ fun DetailScreen(
                 }
             )
         }
-        // ------------------------------------------
     }
 }
 
