@@ -82,6 +82,9 @@ dependencies {
     // Cloudinary untuk Upload Gambar
     implementation("com.cloudinary:cloudinary-android:2.4.0")
 
+    // ## TAMBAHKAN DEPENDENSI INI UNTUK TAB DAN PAGER ##
+    implementation("com.google.accompanist:accompanist-pager:0.28.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
