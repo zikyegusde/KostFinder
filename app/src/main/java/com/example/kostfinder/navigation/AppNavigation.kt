@@ -34,7 +34,6 @@ fun AppNavigation() {
             RegisterScreen(navController, authViewModel)
         }
         composable("home") {
-            // ## PERUBAHAN: Mengirim userViewModel ke HomeScreen ##
             HomeScreen(navController, kostViewModel, userViewModel)
         }
         composable("admin") {
@@ -68,6 +67,37 @@ fun AppNavigation() {
         ) { backStackEntry ->
             val listType = backStackEntry.arguments?.getString("listType")
             FullKostListScreen(navController = navController, listType = listType, kostViewModel = kostViewModel)
+        }
+
+        composable(
+            route = "search?category={category}",
+            arguments = listOf(navArgument("category") {
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { backStackEntry ->
+            val category = backStackEntry.arguments?.getString("category")
+            SearchScreen(
+                navController = navController,
+                kostViewModel = kostViewModel,
+                initialCategory = category
+            )
+        }
+
+        // ## PENAMBAHAN: Route baru untuk halaman hasil kategori ##
+        composable(
+            route = "category_result/{category}",
+            arguments = listOf(navArgument("category") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val category = backStackEntry.arguments?.getString("category")
+            if (category != null) {
+                CategoryResultScreen(
+                    navController = navController,
+                    category = category,
+                    kostViewModel = kostViewModel
+                )
+            }
         }
 
         composable("editProfile") {

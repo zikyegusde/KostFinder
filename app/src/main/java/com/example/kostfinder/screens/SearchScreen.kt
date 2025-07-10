@@ -21,13 +21,27 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SearchScreen(navController: NavController, kostViewModel: KostViewModel = viewModel()) {
-    // ## PERBAIKAN: Mengganti mutableStateOF menjadi mutableStateOf ##
+fun SearchScreen(
+    navController: NavController,
+    kostViewModel: KostViewModel = viewModel(),
+    // ## PENAMBAHAN: Parameter baru untuk menerima kategori awal ##
+    initialCategory: String? = null
+) {
     var searchQuery by remember { mutableStateOf("") }
     val allKosts by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
 
-    var selectedCategories by remember { mutableStateOf<Set<String>>(setOf("Semua")) }
+    // ## PERUBAHAN: State diinisialisasi berdasarkan parameter ##
+    var selectedCategories by remember {
+        mutableStateOf(
+            if (initialCategory != null && initialCategory != "Semua") {
+                setOf(initialCategory)
+            } else {
+                setOf("Semua")
+            }
+        )
+    }
+
     var selectedKabupaten by remember { mutableStateOf<String?>(null) }
     var isKabupatenMenuExpanded by remember { mutableStateOf(false) }
 

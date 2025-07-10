@@ -33,6 +33,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Female
@@ -48,14 +50,19 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -95,6 +102,7 @@ import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.R
 import com.example.kostfinder.UserViewModel
 import com.example.kostfinder.models.Kost
+import com.example.kostfinder.screens.common.KostCardItem
 import com.example.kostfinder.screens.common.ShimmerKostCardPlaceholder
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -143,14 +151,10 @@ fun HomeScreen(
                         label = { Text(screen.label) },
                         selected = selected,
                         onClick = {
-                            if (screen.route == "search") {
-                                navController.navigate(screen.route)
-                            } else {
-                                bottomNavController.navigate(screen.route) {
-                                    popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
+                            bottomNavController.navigate(screen.route) {
+                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
@@ -169,6 +173,9 @@ fun HomeScreen(
                     mainNavController = navController,
                     kostViewModel = kostViewModel
                 )
+            }
+            composable("search") {
+                SearchScreen(navController = navController, kostViewModel = kostViewModel)
             }
             composable("favorites") {
                 FavoritesScreen(
@@ -197,10 +204,24 @@ fun HomeScreenContent(
     mainNavController: NavController,
     kostViewModel: KostViewModel
 ) {
+    val allKosts by kostViewModel.kostList.collectAsState()
     val promoKosts by kostViewModel.promoKosts.collectAsState()
     val popularKosts by kostViewModel.popularKosts.collectAsState()
     val newKosts by kostViewModel.newKosts.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
+    var selectedCategory by remember { mutableStateOf("Semua") }
+    var selectedKabupaten by remember { mutableStateOf<String?>(null) }
+    val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
+
+    val filteredList = remember(selectedCategory, selectedKabupaten, allKosts) {
+        when {
+            selectedKabupaten != null -> {
+                allKosts.filter { it.location.equals(selectedKabupaten, ignoreCase = true) }
+            }
+            selectedCategory == "Semua" -> allKosts
+            else -> allKosts.filter { it.type.equals(selectedCategory, ignoreCase = true) }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -209,12 +230,9 @@ fun HomeScreenContent(
         item {
             MamikosStyleHeader()
         }
-
-        // ## PENAMBAHAN: Carousel Teks Sambutan ##
         item {
             GreetingCarousel()
         }
-
         item {
             val imageUrls = listOf(
                 "https://images.tokopedia.net/img/WMkIgA/2021/6/15/c797e9a1-4357-48ff-bd80-6fee056e33ca.png",
@@ -227,44 +245,81 @@ fun HomeScreenContent(
             )
             AutoSlidingCarousel(imageUrls = imageUrls)
         }
+        item {
+            VisualCategorySection(
+                selectedCategory = selectedCategory,
+                onCategorySelected = { categoryName ->
+                    selectedCategory = categoryName
+                    selectedKabupaten = null
+                },
+                selectedKabupaten = selectedKabupaten,
+                onKabupatenSelected = { kabupatenName ->
+                    selectedKabupaten = kabupatenName
+                    selectedCategory = "Kabupaten"
+                },
+                kabupatenOptions = kabupatenOptions
+            )
+        }
 
-        item {
-            VisualCategorySection()
-        }
-
-        item {
-            PromoNgebutSection(
-                kosts = promoKosts,
-                isLoading = isLoading,
-                onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                onSeeAllClick = { mainNavController.navigate("full_kost_list/promo") }
-            )
-        }
-        item {
-            RecommendationSession(
-                title = "Kost Populer",
-                kosts = popularKosts,
-                isLoading = isLoading,
-                onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                onSeeAllClick = { mainNavController.navigate("full_kost_list/popular") }
-            )
-        }
-        item {
-            RecommendationSession(
-                title = "Baru Ditambahkan",
-                kosts = newKosts,
-                isLoading = isLoading,
-                onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                onSeeAllClick = { mainNavController.navigate("full_kost_list/new") }
-            )
+        if (selectedCategory == "Semua" && selectedKabupaten == null) {
+            item {
+                PromoNgebutSection(
+                    kosts = promoKosts,
+                    isLoading = isLoading,
+                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                    onSeeAllClick = { mainNavController.navigate("full_kost_list/promo") }
+                )
+            }
+            item {
+                RecommendationSession(
+                    title = "Kost Populer",
+                    kosts = popularKosts,
+                    isLoading = isLoading,
+                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                    onSeeAllClick = { mainNavController.navigate("full_kost_list/popular") }
+                )
+            }
+            item {
+                RecommendationSession(
+                    title = "Baru Ditambahkan",
+                    kosts = newKosts,
+                    isLoading = isLoading,
+                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                    onSeeAllClick = { mainNavController.navigate("full_kost_list/new") }
+                )
+            }
+        } else {
+            val title = when {
+                selectedKabupaten != null -> "Hasil untuk \"$selectedKabupaten\""
+                else -> "Hasil untuk \"$selectedCategory\""
+            }
+            item {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+            if (isLoading) {
+                items(5) { ShimmerKostCardPlaceholder() }
+            } else if (filteredList.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                        Text("Tidak ada kost ditemukan untuk filter ini.")
+                    }
+                }
+            } else {
+                items(filteredList) { kost ->
+                    KostCardItem(kost = kost, onClick = {
+                        mainNavController.navigate("detail/${kost.id}")
+                    })
+                }
+            }
         }
     }
 }
 
-/**
- * ## Carousel Teks Sambutan ##
- * Menampilkan teks sambutan yang berubah otomatis dengan animasi fade.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GreetingCarousel() {
@@ -273,16 +328,15 @@ fun GreetingCarousel() {
             "Hai, Sudah Siap Menemukan Kost Impianmu Hari Ini?",
             "Yuk Ngekos dengan Nyaman & Hemat!",
             "Temukan Kost Idamanmu Sekarang Juga, Tanpa Ribet!",
-            "Cek Promo Kost Seru Hari Ini",
-            "Pilih Kost Sesuai Gayamu, Bebas Pilih di Sini!",
+            "Selamat Datang! Cek Promo Kost Seru Hari Ini",
+            "Pilih Kost Sesuai Gayamu, Bebas Pilih di Sini!"
         )
     }
-
     var currentIndex by remember { mutableStateOf(0) }
 
     LaunchedEffect(key1 = Unit) {
         while (true) {
-            delay(4000) // Ganti teks setiap 4 detik
+            delay(4000)
             currentIndex = (currentIndex + 1) % greetings.size
         }
     }
@@ -370,7 +424,13 @@ fun MamikosStyleHeader() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VisualCategorySection() {
+fun VisualCategorySection(
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit,
+    selectedKabupaten: String?,
+    onKabupatenSelected: (String) -> Unit,
+    kabupatenOptions: List<String>
+) {
     val visualCategories = listOf(
         VisualCategory("Putra", Icons.Default.Male),
         VisualCategory("Putri", Icons.Default.Female),
@@ -393,14 +453,65 @@ fun VisualCategorySection() {
                 Box(Modifier.padding(horizontal = 6.dp)) {
                     VisualCategoryCard(
                         category = category,
-                        isSelected = false,
-                        onClick = { }
+                        isSelected = selectedCategory == category.name,
+                        onClick = { onCategorySelected(category.name) }
                     )
                 }
             }
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selectedCategory == "Semua" && selectedKabupaten == null,
+                onClick = { onCategorySelected("Semua") },
+                label = { Text("Tampilkan Semua") }
+            )
+            KabupatenFilter(
+                selectedKabupaten = selectedKabupaten,
+                onKabupatenSelected = onKabupatenSelected,
+                kabupatenOptions = kabupatenOptions
+            )
+        }
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KabupatenFilter(
+    selectedKabupaten: String?,
+    onKabupatenSelected: (String) -> Unit,
+    kabupatenOptions: List<String>
+) {
+    var kabupatenExpanded by remember { mutableStateOf(false) }
+
+    Box {
+        FilterChip(
+            selected = selectedKabupaten != null,
+            onClick = { kabupatenExpanded = true },
+            label = { Text(selectedKabupaten ?: "Pilih Kabupaten") },
+            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) }
+        )
+        DropdownMenu(
+            expanded = kabupatenExpanded,
+            onDismissRequest = { kabupatenExpanded = false }
+        ) {
+            kabupatenOptions.forEach { kabupaten ->
+                DropdownMenuItem(
+                    text = { Text(kabupaten) },
+                    onClick = {
+                        onKabupatenSelected(kabupaten)
+                        kabupatenExpanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun PromoNgebutSection(
@@ -436,15 +547,17 @@ fun PromoNgebutSection(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    reverseLayout = true,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
                     if (isLoading && kosts.isEmpty()) {
                         items(3) {
                             ShimmerKostCardPlaceholder(modifier = Modifier.width(160.dp))
                         }
                     } else {
-                        items(kosts) { kost ->
+                        items(kosts.reversed()) { kost ->
                             SmallPromoCard(kost = kost, onClick = { onKostClick(kost) })
                         }
                     }
@@ -823,6 +936,67 @@ fun AutoSlidingCarousel(imageUrls: List<String>) {
                         .background(color)
                         .size(8.dp)
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryResultScreen(
+    navController: NavController,
+    category: String,
+    kostViewModel: KostViewModel = viewModel()
+) {
+    val allKosts by kostViewModel.kostList.collectAsState()
+    val isLoading by kostViewModel.isLoading.collectAsState()
+
+    val filteredKosts = remember(category, allKosts) {
+        allKosts.filter { it.type.equals(category, ignoreCase = true) }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Kategori: $category") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        if (isLoading) {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(5) { ShimmerKostCardPlaceholder() }
+            }
+        } else if (filteredKosts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("Tidak ada kost ditemukan untuk kategori \"$category\".")
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .padding(paddingValues)
+                    .fillMaxSize(),
+                contentPadding = PaddingValues(top = 8.dp)
+            ) {
+                items(filteredKosts) { kost ->
+                    KostCardItem(kost = kost, onClick = {
+                        navController.navigate("detail/${kost.id}")
+                    })
+                }
             }
         }
     }
