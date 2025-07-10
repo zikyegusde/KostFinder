@@ -1,5 +1,10 @@
 package com.example.kostfinder.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -28,17 +33,22 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Bed
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Female
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Male
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -85,7 +95,6 @@ import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.R
 import com.example.kostfinder.UserViewModel
 import com.example.kostfinder.models.Kost
-import com.example.kostfinder.screens.common.KostCardItem
 import com.example.kostfinder.screens.common.ShimmerKostCardPlaceholder
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
@@ -134,10 +143,14 @@ fun HomeScreen(
                         label = { Text(screen.label) },
                         selected = selected,
                         onClick = {
-                            bottomNavController.navigate(screen.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (screen.route == "search") {
+                                navController.navigate(screen.route)
+                            } else {
+                                bottomNavController.navigate(screen.route) {
+                                    popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
                     )
@@ -157,7 +170,6 @@ fun HomeScreen(
                     kostViewModel = kostViewModel
                 )
             }
-            composable("search") { SearchScreen(navController, kostViewModel) }
             composable("favorites") {
                 FavoritesScreen(
                     onKostClick = { kost -> navController.navigate("detail/${kost.id}") },
@@ -185,31 +197,10 @@ fun HomeScreenContent(
     mainNavController: NavController,
     kostViewModel: KostViewModel
 ) {
-    val allKosts by kostViewModel.kostList.collectAsState()
     val promoKosts by kostViewModel.promoKosts.collectAsState()
     val popularKosts by kostViewModel.popularKosts.collectAsState()
     val newKosts by kostViewModel.newKosts.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
-    var selectedCategory by remember { mutableStateOf("Semua") }
-    var selectedKabupaten by remember { mutableStateOf<String?>(null) }
-
-
-    val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
-
-
-    val filteredList = remember(selectedCategory, selectedKabupaten, allKosts) {
-        when {
-            selectedKabupaten != null -> {
-                allKosts.filter { it.location.equals(selectedKabupaten, ignoreCase = true) }
-            }
-            selectedCategory == "Semua" -> allKosts
-            selectedCategory in listOf("Putra", "Putri", "Campur") -> {
-                allKosts.filter { it.type.equals(selectedCategory, ignoreCase = true) }
-            }
-            else -> allKosts
-        }
-    }
-
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -219,154 +210,119 @@ fun HomeScreenContent(
             MamikosStyleHeader()
         }
 
+        // ## PENAMBAHAN: Carousel Teks Sambutan ##
+        item {
+            GreetingCarousel()
+        }
+
         item {
             val imageUrls = listOf(
-                "https://tse3.mm.bing.net/th/id/OIP.L4QxNrmQhPGgWnsTJdbCoQAAAA?pid=Api&P=0&h=180",
-                "https://tse3.mm.bing.net/th/id/OIP.LCrvvcBSz2cfxkN4O31x8gHaDt?pid=Api&P=0&h=180",
-                "https://tse4.mm.bing.net/th/id/OIP.DZJjoUJwuOmKAB0zG4LqgwHaEK?pid=Api&P=0&h=180",
-                "https://tse2.mm.bing.net/th/id/OIP.qSKThw4ORzM76-Rrcd_TnwHaE8?pid=Api&P=0&h=180"
+                "https://images.tokopedia.net/img/WMkIgA/2021/6/15/c797e9a1-4357-48ff-bd80-6fee056e33ca.png",
+                "https://i.ytimg.com/vi/OznfMwKoY8Y/maxresdefault.jpg",
+                "https://assets.grab.com/wp-content/uploads/sites/9/2025/02/19153558/OG20250214-01_LandingPage_1200x630_GE.jpg",
+                "https://i.ytimg.com/vi/RIrARqvhe1Y/maxresdefault.jpg",
+                "https://pbs.twimg.com/media/EV1a3DiUYAAdaN-.jpg",
+                "https://i.ytimg.com/vi/y6N-5H2H6pc/hq720.jpg?sqp=-oaymwEhCK4FEIIDSFryq4qpAxMIARUAAAAAGAElAADIQj0AgKJD&rs=AOn4CLBoDMy-C9qaxIy4S53NXO5wo5n1OQ",
+                "https://d2z8yrol3i8wid.cloudfront.net/wp-content/uploads/2021/03/Akulaku-Finance.jpg"
             )
             AutoSlidingCarousel(imageUrls = imageUrls)
         }
 
-
         item {
-            VisualCategorySection(
-                selectedCategory = selectedCategory,
-                onCategorySelected = { categoryName ->
-                    selectedCategory = categoryName
-                    selectedKabupaten = null
-                },
-                selectedKabupaten = selectedKabupaten,
-                onKabupatenSelected = { kabupatenName ->
-                    selectedKabupaten = kabupatenName
-                    selectedCategory = "Kabupaten"
-                },
-                kabupatenOptions = kabupatenOptions
-            )
+            VisualCategorySection()
         }
 
-
-        if (selectedCategory == "Semua" && selectedKabupaten == null) {
-            item {
-                PromoNgebutSection(
-                    kosts = promoKosts,
-                    isLoading = isLoading,
-                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                    onSeeAllClick = { mainNavController.navigate("full_kost_list/promo") }
-                )
-            }
-            item {
-                RecommendationSession(
-                    title = "Kost Populer",
-                    kosts = popularKosts,
-                    isLoading = isLoading,
-                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                    onSeeAllClick = { mainNavController.navigate("full_kost_list/popular") }
-                )
-            }
-            item {
-                RecommendationSession(
-                    title = "Baru Ditambahkan",
-                    kosts = newKosts,
-                    isLoading = isLoading,
-                    onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                    onSeeAllClick = { mainNavController.navigate("full_kost_list/new") }
-                )
-            }
-        } else {
-            val title = when {
-                selectedKabupaten != null -> "Hasil untuk \"$selectedKabupaten\""
-                else -> "Hasil untuk \"$selectedCategory\""
-            }
-            item {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-            }
-            if (isLoading) {
-                items(5) { ShimmerKostCardPlaceholder() }
-            } else if (filteredList.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("Tidak ada kost ditemukan untuk kategori ini.")
-                    }
-                }
-            } else {
-                items(filteredList) { kost ->
-                    KostCardItem(kost = kost, onClick = {
-                        mainNavController.navigate("detail/${kost.id}")
-                    })
-                }
-            }
+        item {
+            PromoNgebutSection(
+                kosts = promoKosts,
+                isLoading = isLoading,
+                onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                onSeeAllClick = { mainNavController.navigate("full_kost_list/promo") }
+            )
+        }
+        item {
+            RecommendationSession(
+                title = "Kost Populer",
+                kosts = popularKosts,
+                isLoading = isLoading,
+                onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                onSeeAllClick = { mainNavController.navigate("full_kost_list/popular") }
+            )
+        }
+        item {
+            RecommendationSession(
+                title = "Baru Ditambahkan",
+                kosts = newKosts,
+                isLoading = isLoading,
+                onKostClick = { mainNavController.navigate("detail/${it.id}") },
+                onSeeAllClick = { mainNavController.navigate("full_kost_list/new") }
+            )
         }
     }
 }
 
 /**
- * ## INILAH PERBAIKAN FINAL ##
- * Composable ini menggabungkan Latar Belakang dan Konten Promo dalam satu Box.
- * Ini memastikan kartu-kartu tidak akan pernah keluar dari batas.
+ * ## Carousel Teks Sambutan ##
+ * Menampilkan teks sambutan yang berubah otomatis dengan animasi fade.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PromoNgebutSection(
-    kosts: List<Kost>,
-    isLoading: Boolean,
-    onKostClick: (Kost) -> Unit,
-    onSeeAllClick: () -> Unit
-) {
-    if (isLoading || kosts.isNotEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        ) {
-            // Latar belakang digambar terlebih dahulu
-            PromoNgebutBackground()
+fun GreetingCarousel() {
+    val greetings = remember {
+        listOf(
+            "Hai, Sudah Siap Menemukan Kost Impianmu Hari Ini?",
+            "Yuk Ngekos dengan Nyaman & Hemat!",
+            "Temukan Kost Idamanmu Sekarang Juga, Tanpa Ribet!",
+            "Cek Promo Kost Seru Hari Ini",
+            "Pilih Kost Sesuai Gayamu, Bebas Pilih di Sini!",
+        )
+    }
 
-            // Konten (Judul dan Kartu) ditempatkan di atasnya
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Promo Spesial",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    TextButton(onClick = onSeeAllClick) {
-                        Text("Lihat Semua", color = Color.White.copy(alpha = 0.8f))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                LazyRow(
-                    // Padding di sini diatur untuk memberi ruang di kiri dan kanan
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (isLoading && kosts.isEmpty()) {
-                        items(3) {
-                            ShimmerKostCardPlaceholder(modifier = Modifier.width(160.dp))
-                        }
-                    } else {
-                        items(kosts) { kost ->
-                            SmallPromoCard(kost = kost, onClick = { onKostClick(kost) })
-                        }
-                    }
-                }
+    var currentIndex by remember { mutableStateOf(0) }
+
+    LaunchedEffect(key1 = Unit) {
+        while (true) {
+            delay(4000) // Ganti teks setiap 4 detik
+            currentIndex = (currentIndex + 1) % greetings.size
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        elevation = CardDefaults.cardElevation(0.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = "Search Icon",
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            AnimatedContent(
+                targetState = currentIndex,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(500)) togetherWith
+                            fadeOut(animationSpec = tween(500))
+                }, label = "Greeting Text Animation"
+            ) { targetIndex ->
+                Text(
+                    text = greetings[targetIndex],
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
         }
     }
 }
-
 
 @Composable
 fun MamikosStyleHeader() {
@@ -412,14 +368,9 @@ fun MamikosStyleHeader() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VisualCategorySection(
-    selectedCategory: String,
-    onCategorySelected: (String) -> Unit,
-    selectedKabupaten: String?,
-    onKabupatenSelected: (String) -> Unit,
-    kabupatenOptions: List<String>
-) {
+fun VisualCategorySection() {
     val visualCategories = listOf(
         VisualCategory("Putra", Icons.Default.Male),
         VisualCategory("Putri", Icons.Default.Female),
@@ -442,157 +393,62 @@ fun VisualCategorySection(
                 Box(Modifier.padding(horizontal = 6.dp)) {
                     VisualCategoryCard(
                         category = category,
-                        isSelected = selectedCategory == category.name,
-                        onClick = { onCategorySelected(category.name) }
+                        isSelected = false,
+                        onClick = { }
                     )
                 }
             }
         }
-        Row(
+    }
+}
+
+@Composable
+fun PromoNgebutSection(
+    kosts: List<Kost>,
+    isLoading: Boolean,
+    onKostClick: (Kost) -> Unit,
+    onSeeAllClick: () -> Unit
+) {
+    if (isLoading || kosts.isNotEmpty()) {
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(vertical = 8.dp)
         ) {
-            FilterChip(
-                selected = selectedCategory == "Semua",
-                onClick = { onCategorySelected("Semua") },
-                label = { Text("Tampilkan Semua") }
-            )
-            KabupatenFilter(
-                selectedKabupaten = selectedKabupaten,
-                onKabupatenSelected = onKabupatenSelected,
-                kabupatenOptions = kabupatenOptions
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun VisualCategoryCard(
-    category: VisualCategory,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.width(100.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-        ),
-        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer) else null
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = category.icon,
-                contentDescription = category.name,
-                modifier = Modifier.size(32.dp),
-                tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = category.name,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun KabupatenFilter(
-    selectedKabupaten: String?,
-    onKabupatenSelected: (String) -> Unit,
-    kabupatenOptions: List<String>
-) {
-    var kabupatenExpanded by remember { mutableStateOf(false) }
-
-    Box {
-        FilterChip(
-            selected = selectedKabupaten != null,
-            onClick = { kabupatenExpanded = true },
-            label = { Text(selectedKabupaten ?: "Pilih Kabupaten") },
-            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) }
-        )
-        DropdownMenu(
-            expanded = kabupatenExpanded,
-            onDismissRequest = { kabupatenExpanded = false }
-        ) {
-            kabupatenOptions.forEach { kabupaten ->
-                DropdownMenuItem(
-                    text = { Text(kabupaten) },
-                    onClick = {
-                        onKabupatenSelected(kabupaten)
-                        kabupatenExpanded = false
-                    }
-                )
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun AutoSlidingCarousel(imageUrls: List<String>) {
-    val pagerState = rememberPagerState(pageCount = { imageUrls.size })
-
-    LaunchedEffect(Unit) {
-        while(true) {
-            delay(3000)
-            val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
-            pagerState.animateScrollToPage(nextPage)
-        }
-    }
-
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
-        ) { page ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(model = imageUrls[page]),
-                    contentDescription = "Iklan ${page + 1}",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            Modifier.wrapContentHeight(),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            repeat(pagerState.pageCount) { iteration ->
-                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.LightGray
-                Box(
+            PromoNgebutBackground()
+            Column {
+                Row(
                     modifier = Modifier
-                        .padding(2.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .size(8.dp)
-                )
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Promo Spesial",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    TextButton(onClick = onSeeAllClick) {
+                        Text("Lihat Semua", color = Color.White.copy(alpha = 0.8f))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isLoading && kosts.isEmpty()) {
+                        items(3) {
+                            ShimmerKostCardPlaceholder(modifier = Modifier.width(160.dp))
+                        }
+                    } else {
+                        items(kosts) { kost ->
+                            SmallPromoCard(kost = kost, onClick = { onKostClick(kost) })
+                        }
+                    }
+                }
             }
         }
     }
@@ -604,10 +460,7 @@ fun RecommendationSession(
     kosts: List<Kost>,
     isLoading: Boolean,
     onKostClick: (Kost) -> Unit,
-    onSeeAllClick: () -> Unit,
-    itemContent: @Composable (kost: Kost, onClick: () -> Unit) -> Unit = { kost, onClick ->
-        HorizontalKostCard(kost = kost, onClick = onClick)
-    }
+    onSeeAllClick: () -> Unit
 ) {
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Row(
@@ -637,7 +490,7 @@ fun RecommendationSession(
                 }
             } else {
                 items(kosts) { kost ->
-                    itemContent(kost) { onKostClick(kost) }
+                    HorizontalKostCard(kost = kost, onClick = { onKostClick(kost) })
                 }
             }
         }
@@ -649,7 +502,7 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .width(220.dp)
-            .clickable{ onClick() },
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -718,8 +571,8 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
 fun SmallPromoCard(kost: Kost, onClick: () -> Unit) {
     Card(
         modifier = Modifier
-            .width(160.dp) // Dikecilkan lagi
-            .clickable{ onClick() },
+            .width(160.dp)
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
@@ -730,7 +583,7 @@ fun SmallPromoCard(kost: Kost, onClick: () -> Unit) {
                     contentDescription = kost.name,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(90.dp), // Dikecilkan
+                        .height(90.dp),
                     contentScale = ContentScale.Crop,
                     placeholder = painterResource(R.drawable.ic_placeholder),
                     error = painterResource(R.drawable.ic_error)
@@ -776,7 +629,6 @@ fun SmallPromoCard(kost: Kost, onClick: () -> Unit) {
     }
 }
 
-
 @Composable
 fun BoxScope.PromoBanner() {
     Box(
@@ -808,13 +660,12 @@ fun BoxScope.PromoBanner() {
     }
 }
 
-
 @Composable
 fun PromoNgebutBackground() {
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(250.dp) // Tinggi disesuaikan agar pas
+            .height(250.dp)
             .clip(RoundedCornerShape(16.dp))
     ) {
         val canvasWidth = size.width
@@ -876,6 +727,103 @@ fun PromoNgebutBackground() {
                 canvasHeight * 0.6f,
                 paint
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VisualCategoryCard(
+    category: VisualCategory,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.width(100.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primaryContainer) else null
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = category.icon,
+                contentDescription = category.name,
+                modifier = Modifier.size(32.dp),
+                tint = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = category.name,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun AutoSlidingCarousel(imageUrls: List<String>) {
+    val pagerState = rememberPagerState(pageCount = { imageUrls.size })
+
+    LaunchedEffect(Unit) {
+        while(true) {
+            delay(3000)
+            val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
+            pagerState.animateScrollToPage(nextPage)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp)
+        ) { page ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = imageUrls[page]),
+                    contentDescription = "Iklan ${page + 1}",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            Modifier.wrapContentHeight(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(pagerState.pageCount) { iteration ->
+                val color = if (pagerState.currentPage == iteration) MaterialTheme.colorScheme.primary else Color.LightGray
+                Box(
+                    modifier = Modifier
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(8.dp)
+                )
+            }
         }
     }
 }

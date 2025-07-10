@@ -22,15 +22,16 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(navController: NavController, kostViewModel: KostViewModel = viewModel()) {
+    // ## PERBAIKAN: Mengganti mutableStateOF menjadi mutableStateOf ##
     var searchQuery by remember { mutableStateOf("") }
     val allKosts by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
 
-    var selectedCategory by remember { mutableStateOf("Semua") }
+    var selectedCategories by remember { mutableStateOf<Set<String>>(setOf("Semua")) }
     var selectedKabupaten by remember { mutableStateOf<String?>(null) }
     var isKabupatenMenuExpanded by remember { mutableStateOf(false) }
 
-    val categories = listOf("Semua", "Putra", "Putri", "Campur", "Kos Murah", "Kabupaten")
+    val categories = listOf("Semua", "Putra", "Putri", "Campur", "Kos Murah")
     val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
 
     fun parsePrice(price: String): Long {
@@ -52,10 +53,9 @@ fun SearchScreen(navController: NavController, kostViewModel: KostViewModel = vi
         }
     }
 
-    val filteredKosts = remember(searchQuery, selectedCategory, selectedKabupaten, allKosts) {
+    val filteredKosts = remember(searchQuery, selectedCategories, selectedKabupaten, allKosts) {
         var result = allKosts
 
-        // 1. Filter berdasarkan teks pencarian
         if (searchQuery.isNotBlank()) {
             val query = searchQuery.lowercase(Locale.getDefault())
             result = result.filter {
@@ -66,25 +66,22 @@ fun SearchScreen(navController: NavController, kostViewModel: KostViewModel = vi
             }
         }
 
-        // 2. Filter berdasarkan kategori chip
-        result = when (selectedCategory) {
-            "Kos Murah" -> result.filter { kost ->
-                // ## PERUBAHAN LOGIKA HARGA MURAH ##
-                // Cek harga promo dulu, jika tidak ada, baru cek harga asli.
-                val priceToCheck = kost.promoPrice ?: kost.price
-                val priceValue = parsePrice(priceToCheck)
-                priceValue > 0 && priceValue <= 1_000_000
-                // ## AKHIR PERUBAHAN ##
-            }
-            "Putra", "Putri", "Campur" -> result.filter { it.type.equals(selectedCategory, ignoreCase = true) }
-            "Kabupaten" -> {
-                if (selectedKabupaten != null) {
-                    result.filter { it.location.equals(selectedKabupaten, ignoreCase = true) }
-                } else {
-                    result
+        selectedKabupaten?.let { kabupaten ->
+            result = result.filter { it.location.equals(kabupaten, ignoreCase = true) }
+        }
+
+        if (!selectedCategories.contains("Semua")) {
+            selectedCategories.forEach { category ->
+                result = when (category) {
+                    "Kos Murah" -> result.filter { kost ->
+                        val priceToCheck = kost.promoPrice ?: kost.price
+                        val priceValue = parsePrice(priceToCheck)
+                        priceValue > 0 && priceValue <= 1_000_000
+                    }
+                    "Putra", "Putri", "Campur" -> result.filter { it.type.equals(category, ignoreCase = true) }
+                    else -> result
                 }
             }
-            else -> result
         }
         result
     }
@@ -113,54 +110,56 @@ fun SearchScreen(navController: NavController, kostViewModel: KostViewModel = vi
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             categories.forEach { category ->
-                if (category == "Kabupaten") {
-                    Box {
-                        FilterChip(
-                            selected = selectedCategory == "Kabupaten",
-                            onClick = {
-                                selectedCategory = "Kabupaten"
-                                isKabupatenMenuExpanded = true
-                            },
-                            label = { Text(selectedKabupaten ?: "Kabupaten") },
-                            leadingIcon = if (selectedCategory == "Kabupaten" && selectedKabupaten != null) {
-                                { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
-                            } else null,
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White
-                            )
-                        )
-                        DropdownMenu(
-                            expanded = isKabupatenMenuExpanded,
-                            onDismissRequest = { isKabupatenMenuExpanded = false }
-                        ) {
-                            kabupatenOptions.forEach { kabupaten ->
-                                DropdownMenuItem(
-                                    text = { Text(kabupaten) },
-                                    onClick = {
-                                        selectedKabupaten = kabupaten
-                                        isKabupatenMenuExpanded = false
-                                    }
-                                )
+                val isSelected = selectedCategories.contains(category)
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        val newSelection = selectedCategories.toMutableSet()
+                        if (category == "Semua") {
+                            newSelection.clear()
+                            newSelection.add("Semua")
+                        } else {
+                            newSelection.remove("Semua")
+                            if (isSelected) {
+                                newSelection.remove(category)
+                            } else {
+                                newSelection.add(category)
+                            }
+                            if (newSelection.isEmpty()) {
+                                newSelection.add("Semua")
                             }
                         }
-                    }
-                } else {
-                    FilterChip(
-                        selected = selectedCategory == category,
-                        onClick = {
-                            selectedCategory = category
-                            selectedKabupaten = null
-                        },
-                        label = { Text(category) },
-                        leadingIcon = if (selectedCategory == category) {
-                            { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
-                        } else null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
-                        )
+                        selectedCategories = newSelection
+                    },
+                    label = { Text(category) },
+                    leadingIcon = if (isSelected) {
+                        { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
+                    } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
                     )
+                )
+            }
+            Box {
+                FilterChip(
+                    selected = selectedKabupaten != null,
+                    onClick = { isKabupatenMenuExpanded = true },
+                    label = { Text(selectedKabupaten ?: "Kabupaten") }
+                )
+                DropdownMenu(
+                    expanded = isKabupatenMenuExpanded,
+                    onDismissRequest = { isKabupatenMenuExpanded = false }
+                ) {
+                    kabupatenOptions.forEach { kabupaten ->
+                        DropdownMenuItem(
+                            text = { Text(kabupaten) },
+                            onClick = {
+                                selectedKabupaten = if (selectedKabupaten == kabupaten) null else kabupaten
+                                isKabupatenMenuExpanded = false
+                            }
+                        )
+                    }
                 }
             }
         }

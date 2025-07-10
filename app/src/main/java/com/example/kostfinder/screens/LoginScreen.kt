@@ -114,7 +114,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                     painter = painterResource(id = R.drawable.logo2),
                     contentDescription = "Logo KostFinder",
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(150.dp)
                         .padding(bottom = 16.dp)
                 )
                 Text(
@@ -125,7 +125,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                 Text(
                     text = "Silakan login untuk melanjutkan",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.Gray
+                    color = Color.White.copy(alpha = 0.8f)
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))

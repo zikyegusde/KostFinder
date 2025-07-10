@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -78,7 +79,7 @@ fun EditKostScreen(
     var selectedStatus by remember { mutableStateOf("Tersedia") }
     var selectedType by remember { mutableStateOf("Campur") }
     var isPromo by remember { mutableStateOf(false) }
-    var hargaPromo by remember { mutableStateOf("") } // Tambahan baru
+    var hargaPromo by remember { mutableStateOf("") }
 
     var periodeExpanded by remember { mutableStateOf(false) }
     var selectedPeriode by remember { mutableStateOf("Bulan") }
@@ -86,6 +87,13 @@ fun EditKostScreen(
 
     var kabupatenExpanded by remember { mutableStateOf(false) }
     val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
+
+    // ## State untuk dropdown yang ditambahkan ##
+    var statusExpanded by remember { mutableStateOf(false) }
+    val statusOptions = listOf("Tersedia", "Penuh")
+
+    var typeExpanded by remember { mutableStateOf(false) }
+    val kostTypes = listOf("Campur", "Putra", "Putri")
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -105,7 +113,6 @@ fun EditKostScreen(
             hargaKost = priceParts.getOrNull(0)?.filter { it.isDigit() } ?: ""
             selectedPeriode = priceParts.getOrNull(1)?.trim() ?: "Bulan"
 
-            // Perubahan: Muat data harga promo
             hargaPromo = kost.promoPrice?.filter { it.isDigit() } ?: ""
 
             alamatKost = kost.address
@@ -219,6 +226,54 @@ fun EditKostScreen(
                 OutlinedTextField(value = deskripsiKost, onValueChange = { deskripsiKost = it }, label = { Text("Deskripsi") }, modifier = Modifier.fillMaxWidth(), maxLines = 4)
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // ## PENAMBAHAN DROPDOWN UNTUK STATUS DAN TIPE KOST ##
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ExposedDropdownMenuBox(
+                        expanded = statusExpanded,
+                        onExpandedChange = { statusExpanded = !statusExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = selectedStatus,
+                            onValueChange = {}, readOnly = true,
+                            label = { Text("Status") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(expanded = statusExpanded, onDismissRequest = { statusExpanded = false }) {
+                            statusOptions.forEach { status ->
+                                DropdownMenuItem(text = { Text(status) }, onClick = {
+                                    selectedStatus = status
+                                    statusExpanded = false
+                                })
+                            }
+                        }
+                    }
+                    ExposedDropdownMenuBox(
+                        expanded = typeExpanded,
+                        onExpandedChange = { typeExpanded = !typeExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = selectedType,
+                            onValueChange = {}, readOnly = true,
+                            label = { Text("Tipe") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded) },
+                            modifier = Modifier.menuAnchor()
+                        )
+                        ExposedDropdownMenu(expanded = typeExpanded, onDismissRequest = { typeExpanded = false }) {
+                            kostTypes.forEach { type ->
+                                DropdownMenuItem(text = { Text(type) }, onClick = {
+                                    selectedType = type
+                                    typeExpanded = false
+                                })
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+
                 Text("Gambar Kost", style = MaterialTheme.typography.bodyLarge)
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
@@ -273,7 +328,6 @@ fun EditKostScreen(
                         val processUpdate = { imageUrl: String ->
                             val tags = if (isPromo) listOf("Promo") else emptyList()
                             val priceWithPeriod = "${CurrencyVisualTransformation().filter(AnnotatedString(hargaKost)).text} / ${selectedPeriode}"
-                            // Perubahan: Logika untuk harga promo
                             val promoPriceValue = if (isPromo && hargaPromo.isNotBlank()) {
                                 "${CurrencyVisualTransformation().filter(AnnotatedString(hargaPromo)).text} / $selectedPeriode"
                             } else {
@@ -285,13 +339,13 @@ fun EditKostScreen(
                                 name = namaKost,
                                 location = selectedKabupaten,
                                 price = priceWithPeriod,
-                                promoPrice = promoPriceValue, // Perubahan
+                                promoPrice = promoPriceValue,
                                 description = deskripsiKost,
                                 address = alamatKost,
                                 phone = teleponKost,
                                 isAvailable = selectedStatus == "Tersedia",
                                 imageUrl = imageUrl,
-                                type = selectedType,
+                                type = selectedType, // Tipe kost sekarang ikut ter-update
                                 tags = tags,
                                 createdAt = selectedKost?.createdAt,
                                 ratings = selectedKost?.ratings ?: emptyList(),
