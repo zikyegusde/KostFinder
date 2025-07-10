@@ -1,6 +1,7 @@
 package com.example.kostfinder.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,15 +28,11 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Bed
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Female
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Male
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -47,7 +44,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +56,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -93,7 +95,12 @@ import java.util.Locale
 // Data class untuk mempermudah pengelolaan kategori visual
 data class VisualCategory(val name: String, val icon: ImageVector)
 
-data class BottomNavItem(val label: String, val route: String, val icon: ImageVector)
+data class BottomNavItem(
+    val label: String,
+    val route: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,17 +116,23 @@ fun HomeScreen(
             val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
             val currentDestination = navBackStackEntry?.destination
             val items = listOf(
-                BottomNavItem("Home", "home_content", Icons.Default.Home),
-                BottomNavItem("Search", "search", Icons.Default.Search),
-                BottomNavItem("Favorites", "favorites", Icons.Default.Favorite),
-                BottomNavItem("Profile", "profile", Icons.Default.Person)
+                BottomNavItem("Home", "home_content", Icons.Filled.Home, Icons.Outlined.Home),
+                BottomNavItem("Search", "search", Icons.Filled.Search, Icons.Outlined.Search),
+                BottomNavItem("Favorites", "favorites", Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder),
+                BottomNavItem("Profile", "profile", Icons.Filled.Person, Icons.Outlined.Person)
             )
             NavigationBar {
                 items.forEach { screen ->
+                    val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                     NavigationBarItem(
-                        icon = { Icon(screen.icon, contentDescription = null) },
+                        icon = {
+                            Icon(
+                                if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                contentDescription = null
+                            )
+                        },
                         label = { Text(screen.label) },
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        selected = selected,
                         onClick = {
                             bottomNavController.navigate(screen.route) {
                                 popUpTo(bottomNavController.graph.findStartDestination().id) { saveState = true }
@@ -203,7 +216,6 @@ fun HomeScreenContent(
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         item {
-            // ## PERUBAHAN UTAMA ADA DI SINI ##
             MamikosStyleHeader()
         }
 
@@ -237,39 +249,29 @@ fun HomeScreenContent(
 
         if (selectedCategory == "Semua" && selectedKabupaten == null) {
             item {
-                RecommendationSession(
-                    title = "Promo Spesial",
-                    listType = "promo",
+                PromoNgebutSection(
                     kosts = promoKosts,
                     isLoading = isLoading,
                     onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                    onSeeAllClick = { listType ->
-                        mainNavController.navigate("full_kost_list/$listType")
-                    }
+                    onSeeAllClick = { mainNavController.navigate("full_kost_list/promo") }
                 )
             }
             item {
                 RecommendationSession(
                     title = "Kost Populer",
-                    listType = "popular",
                     kosts = popularKosts,
                     isLoading = isLoading,
                     onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                    onSeeAllClick = { listType ->
-                        mainNavController.navigate("full_kost_list/$listType")
-                    }
+                    onSeeAllClick = { mainNavController.navigate("full_kost_list/popular") }
                 )
             }
             item {
                 RecommendationSession(
                     title = "Baru Ditambahkan",
-                    listType = "new",
                     kosts = newKosts,
                     isLoading = isLoading,
                     onKostClick = { mainNavController.navigate("detail/${it.id}") },
-                    onSeeAllClick = { listType ->
-                        mainNavController.navigate("full_kost_list/$listType")
-                    }
+                    onSeeAllClick = { mainNavController.navigate("full_kost_list/new") }
                 )
             }
         } else {
@@ -304,7 +306,68 @@ fun HomeScreenContent(
     }
 }
 
-// ## COMPOSABLE BARU UNTUK HEADER ALA MAMIKOS ##
+/**
+ * ## INILAH PERBAIKAN FINAL ##
+ * Composable ini menggabungkan Latar Belakang dan Konten Promo dalam satu Box.
+ * Ini memastikan kartu-kartu tidak akan pernah keluar dari batas.
+ */
+@Composable
+fun PromoNgebutSection(
+    kosts: List<Kost>,
+    isLoading: Boolean,
+    onKostClick: (Kost) -> Unit,
+    onSeeAllClick: () -> Unit
+) {
+    if (isLoading || kosts.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            // Latar belakang digambar terlebih dahulu
+            PromoNgebutBackground()
+
+            // Konten (Judul dan Kartu) ditempatkan di atasnya
+            Column {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Promo Spesial",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    TextButton(onClick = onSeeAllClick) {
+                        Text("Lihat Semua", color = Color.White.copy(alpha = 0.8f))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyRow(
+                    // Padding di sini diatur untuk memberi ruang di kiri dan kanan
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (isLoading && kosts.isEmpty()) {
+                        items(3) {
+                            ShimmerKostCardPlaceholder(modifier = Modifier.width(160.dp))
+                        }
+                    } else {
+                        items(kosts) { kost ->
+                            SmallPromoCard(kost = kost, onClick = { onKostClick(kost) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 @Composable
 fun MamikosStyleHeader() {
     Box(
@@ -318,7 +381,6 @@ fun MamikosStyleHeader() {
                 .padding(start = 16.dp, top = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Kolom untuk Teks
             Column(
                 modifier = Modifier.weight(1f)
             ) {
@@ -341,10 +403,8 @@ fun MamikosStyleHeader() {
                     fontSize = 16.sp
                 )
             }
-
-            // Gambar Orang
             Image(
-                painter = painterResource(id = R.drawable.orang_nunjuk), // Pastikan Anda menyimpan gambar dengan nama ini
+                painter = painterResource(id = R.drawable.orang_nunjuk),
                 contentDescription = "Ilustrasi",
                 modifier = Modifier.size(130.dp)
             )
@@ -371,18 +431,21 @@ fun VisualCategorySection(
             text = "Kategori Pilihan",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)
         )
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            contentPadding = PaddingValues(vertical = 12.dp),
         ) {
             items(visualCategories) { category ->
-                VisualCategoryCard(
-                    category = category,
-                    isSelected = selectedCategory == category.name,
-                    onClick = { onCategorySelected(category.name) }
-                )
+                Box(Modifier.padding(horizontal = 6.dp)) {
+                    VisualCategoryCard(
+                        category = category,
+                        isSelected = selectedCategory == category.name,
+                        onClick = { onCategorySelected(category.name) }
+                    )
+                }
             }
         }
         Row(
@@ -538,43 +601,43 @@ fun AutoSlidingCarousel(imageUrls: List<String>) {
 @Composable
 fun RecommendationSession(
     title: String,
-    listType: String,
     kosts: List<Kost>,
     isLoading: Boolean,
     onKostClick: (Kost) -> Unit,
-    onSeeAllClick: (String) -> Unit
+    onSeeAllClick: () -> Unit,
+    itemContent: @Composable (kost: Kost, onClick: () -> Unit) -> Unit = { kost, onClick ->
+        HorizontalKostCard(kost = kost, onClick = onClick)
+    }
 ) {
-    if (isLoading || kosts.isNotEmpty()) {
-        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                )
-                TextButton(onClick = { onSeeAllClick(listType) }) {
-                    Text("Lihat Semua")
-                }
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            TextButton(onClick = onSeeAllClick) {
+                Text("Lihat Semua")
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (isLoading) {
-                    items(3) {
-                        ShimmerKostCardPlaceholder()
-                    }
-                } else {
-                    items(kosts) { kost ->
-                        HorizontalKostCard(kost = kost, onClick = { onKostClick(kost) })
-                    }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (isLoading && kosts.isEmpty()) {
+                items(3) {
+                    ShimmerKostCardPlaceholder(modifier = Modifier.width(220.dp))
+                }
+            } else {
+                items(kosts) { kost ->
+                    itemContent(kost) { onKostClick(kost) }
                 }
             }
         }
@@ -624,7 +687,6 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-
                     if (kost.promoPrice != null) {
                         Column {
                             Text(
@@ -648,6 +710,65 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SmallPromoCard(kost: Kost, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .width(160.dp) // Dikecilkan lagi
+            .clickable{ onClick() },
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Box {
+            Column {
+                AsyncImage(
+                    model = kost.imageUrl,
+                    contentDescription = kost.name,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp), // Dikecilkan
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(R.drawable.ic_placeholder),
+                    error = painterResource(R.drawable.ic_error)
+                )
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text(
+                        text = kost.name,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (kost.promoPrice != null) {
+                        Column {
+                            Text(
+                                text = kost.price,
+                                fontSize = 10.sp,
+                                color = Color.Gray,
+                                textDecoration = TextDecoration.LineThrough
+                            )
+                            Text(
+                                text = kost.promoPrice,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = kost.price,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
             if (kost.tags.contains("Promo")) {
                 PromoBanner()
             }
@@ -655,19 +776,106 @@ fun HorizontalKostCard(kost: Kost, onClick: () -> Unit) {
     }
 }
 
+
 @Composable
 fun BoxScope.PromoBanner() {
-    Surface(
-        color = MaterialTheme.colorScheme.error,
-        shape = RoundedCornerShape(bottomEnd = 8.dp),
-        modifier = Modifier.align(Alignment.TopStart)
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .background(
+                color = Color(0xFFE53935),
+                shape = RoundedCornerShape(topStart = 12.dp, bottomEnd = 12.dp)
+            )
     ) {
-        Text(
-            text = "PROMO",
-            color = Color.White,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.FlashOn,
+                contentDescription = "Promo",
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "PROMO",
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+    }
+}
+
+
+@Composable
+fun PromoNgebutBackground() {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(250.dp) // Tinggi disesuaikan agar pas
+            .clip(RoundedCornerShape(16.dp))
+    ) {
+        val canvasWidth = size.width
+        val canvasHeight = size.height
+
+        drawRect(
+            brush = Brush.linearGradient(
+                colors = listOf(
+                    Color(0xFF4A148C),
+                    Color(0xFF8E24AA),
+                    Color(0xFFD500F9)
+                ),
+                start = Offset(0f, 0f),
+                end = Offset(canvasWidth, canvasHeight)
+            )
         )
+
+        drawLine(
+            color = Color.Yellow.copy(alpha = 0.5f),
+            start = Offset(x = -50f, y = canvasHeight * 0.4f),
+            end = Offset(x = canvasWidth * 0.7f, y = canvasHeight * 0.2f),
+            strokeWidth = 12f,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = Color.White.copy(alpha = 0.6f),
+            start = Offset(x = canvasWidth * 0.3f, y = canvasHeight + 50f),
+            end = Offset(x = canvasWidth * 1.1f, y = canvasHeight * 0.5f),
+            strokeWidth = 8f
+        )
+        drawLine(
+            color = Color(0xFFE040FB).copy(alpha = 0.4f),
+            start = Offset(x = canvasWidth + 20f, y = canvasHeight),
+            end = Offset(x = -20f, y = canvasHeight * 0.9f),
+            strokeWidth = 15f,
+            cap = StrokeCap.Round
+        )
+
+        drawIntoCanvas {
+            val paint = Paint().asFrameworkPaint().apply {
+                isAntiAlias = true
+                textSize = 120f
+                color = android.graphics.Color.WHITE
+                alpha = 30
+                style = android.graphics.Paint.Style.FILL
+                textAlign = android.graphics.Paint.Align.LEFT
+                isFakeBoldText = true
+            }
+            it.nativeCanvas.rotate(-15f, canvasWidth / 2, canvasHeight / 2)
+            it.nativeCanvas.drawText(
+                "PROMO",
+                canvasWidth * 0.1f,
+                canvasHeight * 0.35f,
+                paint
+            )
+            it.nativeCanvas.drawText(
+                "NGEBUT",
+                canvasWidth * 0.2f,
+                canvasHeight * 0.6f,
+                paint
+            )
+        }
     }
 }

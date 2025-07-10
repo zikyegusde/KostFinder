@@ -72,7 +72,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
             .fillMaxSize()
     ) {
         Image(
-            painter = painterResource(id = R.drawable.backround),
+            painter = painterResource(id = R.drawable.awan),
             contentDescription = "Background",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
@@ -94,6 +94,13 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo2),
+                    contentDescription = "Logo KostFinder",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .padding(bottom = 16.dp)
+                )
                 Text(
                     text = "Selamat Datang Kembali!",
                     style = MaterialTheme.typography.headlineMedium,
@@ -106,6 +113,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
+
 
                 OutlinedTextField(
                     value = email,

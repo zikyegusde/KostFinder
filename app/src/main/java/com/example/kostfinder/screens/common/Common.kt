@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,6 +19,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.example.kostfinder.R
 import com.example.kostfinder.models.Kost
@@ -46,7 +48,7 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                 )
                 Surface(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
+                        .align(Alignment.TopEnd)
                         .padding(8.dp),
                     color = Color.Black.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(8.dp)
@@ -58,23 +60,34 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-
-                // ## BANNER PROMO ##
                 if (kost.tags.contains("Promo")) {
-                    Surface(
+                    Box(
                         modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(12.dp),
-                        color = MaterialTheme.colorScheme.error,
-                        shape = RoundedCornerShape(6.dp)
+                            .align(Alignment.TopStart)
+                            .zIndex(1f)
+                            .background(
+                                color = Color(0xFFE53935),
+                                shape = RoundedCornerShape(topStart = 12.dp, bottomEnd = 12.dp)
+                            )
                     ) {
-                        Text(
-                            text = "PROMO",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FlashOn,
+                                contentDescription = "Promo",
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "PROMO",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -134,12 +147,17 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
 }
 
 
+/**
+ * ## FUNGSI YANG DIPERBAIKI ##
+ * Sekarang menerima modifier sebagai parameter.
+ */
 @Composable
-fun ShimmerKostCardPlaceholder() {
+fun ShimmerKostCardPlaceholder(modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier
+        // Gunakan modifier yang diterima dari parameter
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)

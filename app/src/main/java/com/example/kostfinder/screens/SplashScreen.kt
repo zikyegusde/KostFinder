@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,6 +74,13 @@ fun SplashScreen(navController: NavController) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Gambar latar belakang
+        Image(
+            painter = painterResource(id = R.drawable.awan),
+            contentDescription = "Background Awan",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
         // Box untuk menampung semua elemen, termasuk ikon-ikon di posisi absolut
         Box(
             modifier = Modifier
@@ -109,7 +117,7 @@ fun SplashScreen(navController: NavController) {
             ) {
                 // Logo yang dianimasikan
                 Image(
-                    painter = painterResource(id = R.drawable.logo),
+                    painter = painterResource(id = R.drawable.logo2),
                     contentDescription = "Logo KostFinder",
                     modifier = Modifier
                         .size(150.dp)
