@@ -1,7 +1,12 @@
 package com.example.kostfinder.screens
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,18 +17,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bed
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -36,8 +47,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +60,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -58,13 +73,14 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
-@OptIn(ExperimentalMaterial3Api::class) // ## PERBAIKAN: Menambahkan anotasi ini ##
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     Box(
@@ -118,45 +134,72 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email") },
+                    label = { Text("Email atau Username") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Person, contentDescription = "Email Icon")
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    textStyle = TextStyle(color = Color.White), // ## PERBAIKAN: Menggunakan textStyle ##
+                    // ## PERUBAHAN: Membuat bentuk menjadi bulat ##
+                    shape = RoundedCornerShape(50),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color.White,
+                        focusedBorderColor = Color(0xFF4FC3F7),
+                        focusedLabelColor = Color(0xFF4FC3F7),
+                        cursorColor = Color(0xFF4FC3F7),
                         unfocusedBorderColor = Color.White.copy(alpha = 0.7f),
-                        cursorColor = Color.White,
-                        focusedLabelColor = Color.White,
-                        unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.7f),
+                        focusedLeadingIconColor = Color(0xFF4FC3F7)
                     )
                 )
+
                 Spacer(modifier = Modifier.height(16.dp))
+
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Password") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = "Password Icon")
+                    },
+                    trailingIcon = {
+                        val image = if (passwordVisible)
+                            Icons.Filled.Visibility
+                        else Icons.Filled.VisibilityOff
+
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(imageVector = image, "Toggle Password Visibility")
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = PasswordVisualTransformation(),
                     singleLine = true,
-                    textStyle = TextStyle(color = Color.White), // ## PERBAIKAN: Menggunakan textStyle ##
+                    // ## PERUBAHAN: Membuat bentuk menjadi bulat ##
+                    shape = RoundedCornerShape(50),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = Color.White,
+                        focusedBorderColor = Color(0xFF4FC3F7),
+                        focusedLabelColor = Color(0xFF4FC3F7),
+                        cursorColor = Color(0xFF4FC3F7),
                         unfocusedBorderColor = Color.White.copy(alpha = 0.7f),
-                        cursorColor = Color.White,
-                        focusedLabelColor = Color.White,
-                        unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.7f),
+                        unfocusedLeadingIconColor = Color.White.copy(alpha = 0.7f),
+                        unfocusedTrailingIconColor = Color.White.copy(alpha = 0.7f),
+                        focusedLeadingIconColor = Color(0xFF4FC3F7),
+                        focusedTrailingIconColor = Color(0xFF4FC3F7)
                     )
                 )
+
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (isLoading) {
                     CircularProgressIndicator(color = Color.White)
                 } else {
-                    Button(
+                    GradientButton(
+                        text = "Masuk",
                         onClick = {
                             if (email.isBlank() || password.isBlank()) {
                                 errorMessage = "Email dan password wajib diisi"
-                                return@Button
+                                return@GradientButton
                             }
                             isLoading = true
                             Firebase.auth.signInWithEmailAndPassword(email, password)
@@ -177,11 +220,8 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                                         errorMessage = "Login gagal: ${task.exception?.message}"
                                     }
                                 }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Masuk")
-                    }
+                        }
+                    )
                 }
 
                 if (errorMessage.isNotBlank()) {
@@ -199,6 +239,57 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                     )
                 )
             }
+        }
+    }
+}
+
+
+@Composable
+fun GradientButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    gradient: Brush = Brush.horizontalGradient(
+        colors = listOf(Color(0xFF03A9F4), Color(0xFF4FC3F7), Color.White)
+    )
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isPressed) 0.98f else 1f, label = "scale")
+
+    Surface(
+        shape = RoundedCornerShape(50),
+        modifier = modifier
+            .fillMaxWidth()
+            .scale(scale)
+            .pointerInput(Unit) {
+                this.awaitPointerEventScope {
+                    while (true) {
+                        awaitFirstDown()
+                        isPressed = true
+                        waitForUpOrCancellation()
+                        isPressed = false
+                    }
+                }
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            ),
+        tonalElevation = 4.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .background(gradient)
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                color = Color.Black,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyLarge
+            )
         }
     }
 }

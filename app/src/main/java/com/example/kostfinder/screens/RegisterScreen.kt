@@ -3,7 +3,13 @@ package com.example.kostfinder.screens
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +19,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -20,6 +27,7 @@ import androidx.navigation.NavController
 import com.example.kostfinder.AuthViewModel
 import com.example.kostfinder.R
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
     var email by remember { mutableStateOf("") }
@@ -28,6 +36,7 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = 
     val roles = listOf("User", "Admin")
     val isLoading by authViewModel.isLoading.collectAsState()
     val context = LocalContext.current
+    var passwordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -37,7 +46,7 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = 
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Image(
-            painter = painterResource(id = R.drawable.logo),
+            painter = painterResource(id = R.drawable.logo2),
             contentDescription = "Logo KostFinder",
             modifier = Modifier
                 .size(120.dp)
@@ -47,22 +56,41 @@ fun RegisterScreen(navController: NavController, authViewModel: AuthViewModel = 
         Text("Buat Akun Baru", style = MaterialTheme.typography.headlineLarge)
         Spacer(modifier = Modifier.height(24.dp))
 
+        // ## PERUBAHAN: Input field email dengan ikon dan bentuk bulat ##
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email") },
+            leadingIcon = {
+                Icon(Icons.Default.Person, contentDescription = "Email Icon")
+            },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            shape = RoundedCornerShape(50) // Membuat bentuk menjadi bulat panjang
         )
         Spacer(modifier = Modifier.height(16.dp))
 
+        // ## PERUBAHAN: Input field password dengan ikon, toggle, dan bentuk bulat ##
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
             label = { Text("Password") },
+            leadingIcon = {
+                Icon(Icons.Default.Lock, contentDescription = "Password Icon")
+            },
+            trailingIcon = {
+                val image = if (passwordVisible)
+                    Icons.Filled.Visibility
+                else Icons.Filled.VisibilityOff
+
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(imageVector = image, "Toggle Password Visibility")
+                }
+            },
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true
+            singleLine = true,
+            shape = RoundedCornerShape(50) // Membuat bentuk menjadi bulat panjang
         )
         Spacer(modifier = Modifier.height(16.dp))
 
