@@ -83,13 +83,11 @@ import com.example.kostfinder.KostViewModel
 import com.example.kostfinder.R
 import com.example.kostfinder.UserViewModel
 import com.example.kostfinder.models.Kost
-import com.example.kostfinder.models.User
 import com.example.kostfinder.screens.common.KostCardItem
 import com.example.kostfinder.screens.common.ShimmerKostCardPlaceholder
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
-import java.util.Calendar
 import java.util.Locale
 
 // Data class untuk mempermudah pengelolaan kategori visual
@@ -143,8 +141,7 @@ fun HomeScreen(
             composable("home_content") {
                 HomeScreenContent(
                     mainNavController = navController,
-                    kostViewModel = kostViewModel,
-                    userViewModel = userViewModel
+                    kostViewModel = kostViewModel
                 )
             }
             composable("search") { SearchScreen(navController, kostViewModel) }
@@ -155,12 +152,10 @@ fun HomeScreen(
                 )
             }
             composable("profile") {
-                // ## PERBAIKAN UTAMA ADA DI SINI ##
                 ProfileScreen(
                     navController = navController,
                     onLogoutClick = {
                         Firebase.auth.signOut()
-                        // Membersihkan backstack dan kembali ke halaman login
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
                         }
@@ -175,19 +170,19 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     mainNavController: NavController,
-    kostViewModel: KostViewModel,
-    userViewModel: UserViewModel
+    kostViewModel: KostViewModel
 ) {
     val allKosts by kostViewModel.kostList.collectAsState()
     val promoKosts by kostViewModel.promoKosts.collectAsState()
     val popularKosts by kostViewModel.popularKosts.collectAsState()
     val newKosts by kostViewModel.newKosts.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
-    val userData by userViewModel.userData.collectAsState()
     var selectedCategory by remember { mutableStateOf("Semua") }
     var selectedKabupaten by remember { mutableStateOf<String?>(null) }
 
+
     val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
+
 
     val filteredList = remember(selectedCategory, selectedKabupaten, allKosts) {
         when {
@@ -202,11 +197,15 @@ fun HomeScreenContent(
         }
     }
 
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
-        item { GreetingHeader(user = userData) }
+        item {
+            // ## PERUBAHAN UTAMA ADA DI SINI ##
+            MamikosStyleHeader()
+        }
 
         item {
             val imageUrls = listOf(
@@ -217,6 +216,7 @@ fun HomeScreenContent(
             )
             AutoSlidingCarousel(imageUrls = imageUrls)
         }
+
 
         item {
             VisualCategorySection(
@@ -233,6 +233,7 @@ fun HomeScreenContent(
                 kabupatenOptions = kabupatenOptions
             )
         }
+
 
         if (selectedCategory == "Semua" && selectedKabupaten == null) {
             item {
@@ -299,6 +300,54 @@ fun HomeScreenContent(
                     })
                 }
             }
+        }
+    }
+}
+
+// ## COMPOSABLE BARU UNTUK HEADER ALA MAMIKOS ##
+@Composable
+fun MamikosStyleHeader() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.primary)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Kolom untuk Teks
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = "KostFinder",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "#EnaknyaNgekos",
+                    color = Color.White,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Cari & Sewa Kos Mudah",
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 16.sp
+                )
+            }
+
+            // Gambar Orang
+            Image(
+                painter = painterResource(id = R.drawable.orang_nunjuk), // Pastikan Anda menyimpan gambar dengan nama ini
+                contentDescription = "Ilustrasi",
+                modifier = Modifier.size(130.dp)
+            )
         }
     }
 }
@@ -425,37 +474,6 @@ fun KabupatenFilter(
                 )
             }
         }
-    }
-}
-
-@Composable
-fun GreetingHeader(user: User?) {
-    val calendar = Calendar.getInstance()
-    val greeting = when (calendar.get(Calendar.HOUR_OF_DAY)) {
-        in 0..11 -> "Selamat Pagi,"
-        in 12..14 -> "Selamat Siang,"
-        in 15..17 -> "Selamat Sore,"
-        else -> "Selamat Malam,"
-    }
-    val userName = user?.name?.split(" ")?.firstOrNull()?.takeIf { it.isNotBlank() } ?: "Pengguna"
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.primary)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = greeting,
-            color = Color.White.copy(alpha = 0.8f),
-            fontSize = 16.sp
-        )
-        Text(
-            text = userName,
-            color = Color.White,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
     }
 }
 

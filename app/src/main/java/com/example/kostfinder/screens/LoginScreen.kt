@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bed
@@ -21,10 +20,12 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,14 +35,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
@@ -55,6 +58,7 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
+@OptIn(ExperimentalMaterial3Api::class) // ## PERBAIKAN: Menambahkan anotasi ini ##
 @Composable
 fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = viewModel()) {
     var email by remember { mutableStateOf("") }
@@ -66,8 +70,18 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.backround),
+            contentDescription = "Background",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.3f))
+        )
+
         IconBackground()
 
         Column(
@@ -78,28 +92,35 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
-                    .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.logo),
-                    contentDescription = "Logo KostFinder",
-                    modifier = Modifier
-                        .size(100.dp)
-                        .padding(bottom = 16.dp)
+                Text(
+                    text = "Selamat Datang Kembali!",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
                 )
-                Text("Login", style = MaterialTheme.typography.headlineLarge)
-                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "Silakan login untuk melanjutkan",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
 
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
                     label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    textStyle = TextStyle(color = Color.White), // ## PERBAIKAN: Menggunakan textStyle ##
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.7f),
+                        cursorColor = Color.White,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+                    )
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
@@ -108,12 +129,20 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true
+                    singleLine = true,
+                    textStyle = TextStyle(color = Color.White), // ## PERBAIKAN: Menggunakan textStyle ##
+                    colors = TextFieldDefaults.outlinedTextFieldColors(
+                        focusedBorderColor = Color.White,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.7f),
+                        cursorColor = Color.White,
+                        focusedLabelColor = Color.White,
+                        unfocusedLabelColor = Color.White.copy(alpha = 0.7f)
+                    )
                 )
                 Spacer(modifier = Modifier.height(24.dp))
 
                 if (isLoading) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = Color.White)
                 } else {
                     Button(
                         onClick = {
@@ -157,7 +186,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                     text = AnnotatedString("Belum punya akun? Daftar di sini"),
                     onClick = { navController.navigate("register") },
                     style = TextStyle(
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Color.White,
                         textDecoration = TextDecoration.Underline
                     )
                 )
@@ -170,15 +199,12 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
 @Composable
 fun IconBackground() {
     val icons = listOf(Icons.Default.Key, Icons.Default.Bed, Icons.Default.LocationOn, Icons.Default.Shield)
-    // Mengambil konfigurasi layar untuk mendapatkan ukuran
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp.dp
     val screenHeightDp = configuration.screenHeightDp.dp
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Hasilkan 25 ikon
         repeat(25) { index ->
-            // ## PERBAIKAN UTAMA: Menggunakan key dan nilai Dp acak ##
             val iconData = remember(key1 = index) {
                 IconData(
                     icon = icons.random(),
@@ -207,7 +233,7 @@ fun BackgroundIcon(data: IconData) {
     Icon(
         imageVector = data.icon,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+        tint = Color.White.copy(alpha = 0.12f),
         modifier = Modifier
             .size(data.size)
             .offset(x = data.x, y = data.y)
@@ -216,7 +242,6 @@ fun BackgroundIcon(data: IconData) {
     )
 }
 
-// ## PERBAIKAN: Menyimpan posisi dalam Dp ##
 data class IconData(
     val icon: ImageVector,
     val x: Dp,
