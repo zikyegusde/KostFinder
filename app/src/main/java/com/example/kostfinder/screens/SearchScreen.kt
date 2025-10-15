@@ -19,6 +19,9 @@ import com.example.kostfinder.screens.common.KostCardItem
 import com.example.kostfinder.screens.common.ShimmerKostCardPlaceholder
 import java.util.Locale
 
+// Data class untuk rentang harga agar lebih mudah dikelola
+data class PriceRange(val label: String, val min: Long, val max: Long)
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(
@@ -43,7 +46,17 @@ fun SearchScreen(
     var selectedKabupaten by remember { mutableStateOf<String?>(null) }
     var isKabupatenMenuExpanded by remember { mutableStateOf(false) }
 
-    val categories = listOf("Semua", "Putra", "Putri", "Campur", "Kos Murah")
+    // --- PENAMBAHAN UNTUK FILTER HARGA ---
+    val priceRanges = listOf(
+        PriceRange("Semua Harga", 0, Long.MAX_VALUE),
+        PriceRange("< 1 Juta", 0, 1_000_000),
+        PriceRange("1 - 2 Juta", 1_000_000, 2_000_000),
+        PriceRange("> 2 Juta", 2_000_000, Long.MAX_VALUE)
+    )
+    var selectedPriceRange by remember { mutableStateOf(priceRanges.first()) }
+    // ------------------------------------
+
+    val categories = listOf("Semua", "Putra", "Putri", "Campur") // Kos Murah dihapus karena digantikan range harga
     val kabupatenOptions = listOf("Badung", "Bangli", "Buleleng", "Denpasar", "Gianyar", "Jembrana", "Karangasem", "Klungkung", "Tabanan")
 
     fun parsePrice(price: String): Long {
@@ -59,13 +72,14 @@ fun SearchScreen(
             }
             val cleanedString = lowerCasePrice.replace(Regex("\\D"), "")
             if (cleanedString.isBlank()) return 0L
+            // Menghapus karakter non-digit dari harga yang sudah diformat (misal: "Rp1.500.000")
             return cleanedString.toLong()
         } catch (_: Exception) {
             return 0L
         }
     }
 
-    val filteredKosts = remember(searchQuery, selectedCategories, selectedKabupaten, allKosts) {
+    val filteredKosts = remember(searchQuery, selectedCategories, selectedKabupaten, selectedPriceRange, allKosts) {
         var result = allKosts
 
         if (searchQuery.isNotBlank()) {
@@ -83,27 +97,27 @@ fun SearchScreen(
         }
 
         if (!selectedCategories.contains("Semua")) {
-            selectedCategories.forEach { category ->
-                result = when (category) {
-                    "Kos Murah" -> result.filter { kost ->
-                        val priceToCheck = kost.promoPrice ?: kost.price
-                        val priceValue = parsePrice(priceToCheck)
-                        priceValue > 0 && priceValue <= 1_000_000
-                    }
-                    "Putra", "Putri", "Campur" -> result.filter { it.type.equals(category, ignoreCase = true) }
-                    else -> result
-                }
+            result = result.filter { kost -> selectedCategories.any { it.equals(kost.type, ignoreCase = true) } }
+        }
+
+        // --- PENAMBAHAN LOGIKA FILTER HARGA ---
+        if (selectedPriceRange.label != "Semua Harga") {
+            result = result.filter { kost ->
+                val priceToCheck = kost.promoPrice ?: kost.price
+                val priceValue = parsePrice(priceToCheck)
+                priceValue > selectedPriceRange.min && priceValue <= selectedPriceRange.max
             }
         }
+        // -------------------------------------
+
         result
     }
 
-    // ## PERUBAHAN DI SINI: Dibungkus dengan Scaffold ##
     Scaffold { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues) // Gunakan padding dari Scaffold
+                .padding(paddingValues)
                 .padding(16.dp)
         ) {
             Text("Cari Kost Impianmu", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
@@ -119,6 +133,7 @@ fun SearchScreen(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
+            Text("Filter Kategori", style = MaterialTheme.typography.titleMedium)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -153,7 +168,6 @@ fun SearchScreen(
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
                             selectedLabelColor = Color.White,
-                            // ## TAMBAHAN: Warna untuk chip yang tidak terpilih ##
                             labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             iconColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -181,8 +195,35 @@ fun SearchScreen(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
 
+            // --- UI UNTUK FILTER HARGA ---
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Filter Harga (per Bulan)", style = MaterialTheme.typography.titleMedium)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                priceRanges.forEach { range ->
+                    val isSelected = selectedPriceRange == range
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { selectedPriceRange = range },
+                        label = { Text(range.label) },
+                        leadingIcon = if (isSelected) {
+                            { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                }
+            }
+            // -----------------------------
+
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 "Hasil Pencarian (${filteredKosts.size})",
                 style = MaterialTheme.typography.titleMedium,
