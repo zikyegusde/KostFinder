@@ -13,20 +13,27 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.kostfinder.R
+import com.example.kostfinder.ThemeViewModel
 import com.example.kostfinder.UserViewModel
+import com.example.kostfinder.data.ThemeDataStore
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +44,23 @@ fun ProfileScreen(
     userViewModel: UserViewModel = viewModel()
 ) {
     val userData by userViewModel.userData.collectAsState()
+    val context = LocalContext.current
+    // Inisialisasi ViewModel untuk tema
+    val themeDataStore = remember { ThemeDataStore(context) }
+    val themeViewModel: ThemeViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                if (modelClass.isAssignableFrom(ThemeViewModel::class.java)) {
+                    @Suppress("UNCHECKED_CAST")
+                    return ThemeViewModel(themeDataStore) as T
+                }
+                throw IllegalArgumentException("Unknown ViewModel class")
+            }
+        }
+    )
+    val isDarkTheme by themeViewModel.isDarkTheme.collectAsState(initial = false)
+    val coroutineScope = rememberCoroutineScope()
+
 
     Scaffold(
         topBar = {
@@ -49,12 +73,11 @@ fun ProfileScreen(
             )
         }
     ) { paddingValues ->
-        // ## PERBAIKAN: Seluruh halaman sekarang bisa di-scroll ##
         Column(
             modifier = Modifier
                 .padding(paddingValues)
                 .fillMaxSize()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background) // Menggunakan warna dari tema
                 .verticalScroll(rememberScrollState())
         ) {
             // User Info Section
@@ -79,7 +102,8 @@ fun ProfileScreen(
                 Text(
                     userData?.name ?: "Pengguna",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground // Menggunakan warna dari tema
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -107,6 +131,40 @@ fun ProfileScreen(
                     onClick = { navController.navigate("my_reviews") }
                 )
                 Divider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+
+                // --- Fitur Mode Gelap Ditambahkan Di Sini ---
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Brightness4,
+                            contentDescription = "Dark Mode",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Text(
+                            "Mode Gelap",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Switch(
+                        checked = isDarkTheme,
+                        onCheckedChange = { isChecked ->
+                            coroutineScope.launch {
+                                themeViewModel.setTheme(isChecked)
+                            }
+                        }
+                    )
+                }
+                // -----------------------------------------
+
+                Divider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 ProfileMenuItem(
                     text = "Tentang Aplikasi",
                     icon = Icons.Default.Info,
@@ -124,17 +182,14 @@ fun ProfileScreen(
                 )
                 Divider(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
 
-                // ## PERBAIKAN: Tombol Logout dijadikan menu item ##
                 ProfileMenuItem(
                     text = "Logout",
                     icon = Icons.Default.Logout,
                     onClick = onLogoutClick,
-                    // Beri warna merah untuk menandakan aksi penting
                     tint = MaterialTheme.colorScheme.error
                 )
             }
 
-            // Beri jarak di bagian paling bawah
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -145,7 +200,7 @@ fun ProfileMenuItem(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    tint: Color = MaterialTheme.colorScheme.primary // Parameter baru untuk warna
+    tint: Color = MaterialTheme.colorScheme.primary
 ) {
     Row(
         modifier = Modifier
@@ -157,16 +212,16 @@ fun ProfileMenuItem(
         Icon(
             imageVector = icon,
             contentDescription = text,
-            tint = tint // Gunakan warna dari parameter
+            tint = tint
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.weight(1f),
-            color = if (tint != MaterialTheme.colorScheme.primary) tint else LocalContentColor.current
+            // Menggunakan warna dari tema agar teks bisa beradaptasi
+            color = if (tint != MaterialTheme.colorScheme.primary) tint else MaterialTheme.colorScheme.onBackground
         )
-        // Hilangkan ikon panah khusus untuk tombol logout
         if (text != "Logout") {
             Icon(
                 imageVector = Icons.Default.ArrowForwardIos,
