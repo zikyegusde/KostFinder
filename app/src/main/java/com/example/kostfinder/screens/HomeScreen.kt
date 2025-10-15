@@ -161,7 +161,8 @@ fun HomeScreen(
                 }
             }
         },
-        containerColor = Color(0xFFF0F4F7)
+        // ## PERUBAHAN DI SINI ##
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         NavHost(
             navController = bottomNavController,
@@ -320,6 +321,7 @@ fun HomeScreenContent(
     }
 }
 
+// ... (Sisa kode di HomeScreen.kt tetap sama)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GreetingCarousel() {

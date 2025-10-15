@@ -24,14 +24,12 @@ import java.util.Locale
 fun SearchScreen(
     navController: NavController,
     kostViewModel: KostViewModel = viewModel(),
-    // ## PENAMBAHAN: Parameter baru untuk menerima kategori awal ##
     initialCategory: String? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val allKosts by kostViewModel.kostList.collectAsState()
     val isLoading by kostViewModel.isLoading.collectAsState()
 
-    // ## PERUBAHAN: State diinisialisasi berdasarkan parameter ##
     var selectedCategories by remember {
         mutableStateOf(
             if (initialCategory != null && initialCategory != "Semua") {
@@ -100,102 +98,109 @@ fun SearchScreen(
         result
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text("Cari Kost Impianmu", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            label = { Text("Masukkan nama, lokasi, atau tipe...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+    // ## PERUBAHAN DI SINI: Dibungkus dengan Scaffold ##
+    Scaffold { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues) // Gunakan padding dari Scaffold
+                .padding(16.dp)
         ) {
-            categories.forEach { category ->
-                val isSelected = selectedCategories.contains(category)
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        val newSelection = selectedCategories.toMutableSet()
-                        if (category == "Semua") {
-                            newSelection.clear()
-                            newSelection.add("Semua")
-                        } else {
-                            newSelection.remove("Semua")
-                            if (isSelected) {
-                                newSelection.remove(category)
-                            } else {
-                                newSelection.add(category)
-                            }
-                            if (newSelection.isEmpty()) {
+            Text("Cari Kost Impianmu", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Masukkan nama, lokasi, atau tipe...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                categories.forEach { category ->
+                    val isSelected = selectedCategories.contains(category)
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            val newSelection = selectedCategories.toMutableSet()
+                            if (category == "Semua") {
+                                newSelection.clear()
                                 newSelection.add("Semua")
+                            } else {
+                                newSelection.remove("Semua")
+                                if (isSelected) {
+                                    newSelection.remove(category)
+                                } else {
+                                    newSelection.add(category)
+                                }
+                                if (newSelection.isEmpty()) {
+                                    newSelection.add("Semua")
+                                }
                             }
-                        }
-                        selectedCategories = newSelection
-                    },
-                    label = { Text(category) },
-                    leadingIcon = if (isSelected) {
-                        { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
-                    } else null,
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    )
-                )
-            }
-            Box {
-                FilterChip(
-                    selected = selectedKabupaten != null,
-                    onClick = { isKabupatenMenuExpanded = true },
-                    label = { Text(selectedKabupaten ?: "Kabupaten") }
-                )
-                DropdownMenu(
-                    expanded = isKabupatenMenuExpanded,
-                    onDismissRequest = { isKabupatenMenuExpanded = false }
-                ) {
-                    kabupatenOptions.forEach { kabupaten ->
-                        DropdownMenuItem(
-                            text = { Text(kabupaten) },
-                            onClick = {
-                                selectedKabupaten = if (selectedKabupaten == kabupaten) null else kabupaten
-                                isKabupatenMenuExpanded = false
-                            }
+                            selectedCategories = newSelection
+                        },
+                        label = { Text(category) },
+                        leadingIcon = if (isSelected) {
+                            { Icon(imageVector = Icons.Default.Done, contentDescription = "Done") }
+                        } else null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White,
+                            // ## TAMBAHAN: Warna untuk chip yang tidak terpilih ##
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            iconColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    )
+                }
+                Box {
+                    FilterChip(
+                        selected = selectedKabupaten != null,
+                        onClick = { isKabupatenMenuExpanded = true },
+                        label = { Text(selectedKabupaten ?: "Kabupaten") }
+                    )
+                    DropdownMenu(
+                        expanded = isKabupatenMenuExpanded,
+                        onDismissRequest = { isKabupatenMenuExpanded = false }
+                    ) {
+                        kabupatenOptions.forEach { kabupaten ->
+                            DropdownMenuItem(
+                                text = { Text(kabupaten) },
+                                onClick = {
+                                    selectedKabupaten = if (selectedKabupaten == kabupaten) null else kabupaten
+                                    isKabupatenMenuExpanded = false
+                                }
+                            )
+                        }
                     }
                 }
             }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            "Hasil Pencarian (${filteredKosts.size})",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Hasil Pencarian (${filteredKosts.size})",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
-        if (isLoading) {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(5) { ShimmerKostCardPlaceholder() }
-            }
-        } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(filteredKosts) { kost ->
-                    KostCardItem(kost = kost, onClick = {
-                        navController.navigate("detail/${kost.id}")
-                    })
+            if (isLoading) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(5) { ShimmerKostCardPlaceholder() }
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(filteredKosts) { kost ->
+                        KostCardItem(kost = kost, onClick = {
+                            navController.navigate("detail/${kost.id}")
+                        })
+                    }
                 }
             }
         }

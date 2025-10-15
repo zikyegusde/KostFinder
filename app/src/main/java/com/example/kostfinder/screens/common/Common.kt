@@ -34,7 +34,8 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
             .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        // ## PERUBAHAN DI SINI: Menggunakan warna dari tema ##
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column {
             Box(modifier = Modifier.height(180.dp)) {
@@ -97,7 +98,9 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    // ## PERUBAHAN DI SINI: Menggunakan warna dari tema ##
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -147,10 +150,6 @@ fun KostCardItem(kost: Kost, onClick: () -> Unit) {
 }
 
 
-/**
- * ## FUNGSI YANG DIPERBAIKI ##
- * Sekarang menerima modifier sebagai parameter.
- */
 @Composable
 fun ShimmerKostCardPlaceholder(modifier: Modifier = Modifier) {
     Card(
@@ -160,35 +159,36 @@ fun ShimmerKostCardPlaceholder(modifier: Modifier = Modifier) {
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        // ## PERUBAHAN DI SINI: Menggunakan warna dari tema ##
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
-                    .background(Color.LightGray.copy(alpha = 0.6f))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
             )
             Column(modifier = Modifier.padding(16.dp)) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.7f)
                         .height(24.dp)
-                        .background(Color.LightGray.copy(alpha = 0.6f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.5f)
                         .height(20.dp)
-                        .background(Color.LightGray.copy(alpha = 0.6f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.3f)
                         .height(20.dp)
-                        .background(Color.LightGray.copy(alpha = 0.6f))
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                 )
             }
         }
