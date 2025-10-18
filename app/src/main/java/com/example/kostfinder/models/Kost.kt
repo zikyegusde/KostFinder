@@ -10,14 +10,14 @@ data class Kost(
     val name: String = "",
     val location: String = "",
     val price: String = "",
-    val promoPrice: String? = null, // Tambahan baru
+    val promoPrice: String? = null,
     val description: String = "",
     val imageUrl: String = "",
     val address: String = "",
     val phone: String = "",
     val ratings: List<Rating> = emptyList(),
     var isAvailable: Boolean = true,
-    val bookedBy: List<String> = emptyList(),
+    // val bookedBy: List<String> = emptyList(), // <-- HAPUS BARIS INI
     val type: String = "Campur",
     @ServerTimestamp
     val createdAt: Date? = null,

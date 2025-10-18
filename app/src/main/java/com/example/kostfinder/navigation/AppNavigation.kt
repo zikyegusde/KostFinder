@@ -85,7 +85,6 @@ fun AppNavigation() {
             )
         }
 
-        // ## PENAMBAHAN: Route baru untuk halaman hasil kategori ##
         composable(
             route = "category_result/{category}",
             arguments = listOf(navArgument("category") { type = NavType.StringType })
@@ -136,5 +135,21 @@ fun AppNavigation() {
                 navController.popBackStack()
             }
         }
+
+        // --- RUTE BARU UNTUK ADMIN MENGELOLA BOOKING ---
+        composable(
+            route = "adminBookings/{kostId}",
+            arguments = listOf(navArgument("kostId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val kostId = backStackEntry.arguments?.getString("kostId")
+            if (kostId != null) {
+                AdminBookingScreen(
+                    navController = navController,
+                    kostId = kostId,
+                    kostViewModel = kostViewModel
+                )
+            }
+        }
+        // --------------------------------------------
     }
 }

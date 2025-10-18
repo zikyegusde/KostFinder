@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.People // <-- IMPORT BARU
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -86,7 +87,7 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
     var hargaPromo by remember { mutableStateOf("") }
 
     var periodeExpanded by remember { mutableStateOf(false) }
-    var selectedPeriode by remember { mutableStateOf("Bulan") } // Perbaikan: `mutableStateOf`
+    var selectedPeriode by remember { mutableStateOf("Bulan") }
     val periodeOptions = listOf("Bulan", "Tahun")
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -345,7 +346,7 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                                             deskripsiKost = ""
                                             imageUri = null
                                             isPromo = false
-                                            hargaPromo = "" // Perbaikan: reset hargaPromo
+                                            hargaPromo = ""
                                         } else {
                                             Toast.makeText(context, "Gagal menyimpan data: $error", Toast.LENGTH_LONG).show()
                                         }
@@ -375,19 +376,28 @@ fun AdminScreen(navController: NavController, kostViewModel: KostViewModel = vie
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable { navController.navigate("detail/${kost.id}") },
+                            .padding(vertical = 4.dp),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f)) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { navController.navigate("detail/${kost.id}") }
+                            ) {
                                 Text(kost.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                                 Text(kost.location, style = MaterialTheme.typography.bodyMedium)
                                 Text(kost.price, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                             }
+
+                            // --- TOMBOL BARU UNTUK MANAJEMEN BOOKING ---
+                            IconButton(onClick = { navController.navigate("adminBookings/${kost.id}") }) {
+                                Icon(Icons.Default.People, contentDescription = "Manage Bookings")
+                            }
+                            // ------------------------------------------
 
                             IconButton(onClick = { navController.navigate("editKost/${kost.id}") }) {
                                 Icon(Icons.Default.Edit, contentDescription = "Edit Kost")

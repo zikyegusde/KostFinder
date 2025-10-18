@@ -1,5 +1,6 @@
 package com.example.kostfinder.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,10 +32,10 @@ fun BookingHistoryScreen(
     navController: NavController,
     userViewModel: UserViewModel = viewModel()
 ) {
-    val userData by userViewModel.userData.collectAsState()
-    val bookingHistory = userData?.bookings?.sortedByDescending { it.bookingDate } ?: emptyList()
+    // --- MODIFIKASI: Ambil booking dari flow baru ---
+    val bookingHistory by userViewModel.bookingHistory.collectAsState()
+    // ----------------------------------------------
 
-    // State untuk mengontrol dialog konfirmasi
     var showCancelDialog by remember { mutableStateOf(false) }
     var bookingToCancel by remember { mutableStateOf<Booking?>(null) }
     val context = LocalContext.current
@@ -112,11 +113,25 @@ fun BookingHistoryScreen(
 @Composable
 fun BookingHistoryItem(
     booking: Booking,
-    onCancelClick: (Booking) -> Unit // Tambahkan parameter ini
+    onCancelClick: (Booking) -> Unit
 ) {
+    // Tentukan warna berdasarkan status
+    val statusColor = when (booking.status) {
+        "Approved" -> Color(0xFFDCEDC8) // Hijau muda
+        "Rejected" -> Color(0xFFFFCDD2) // Merah muda
+        else -> MaterialTheme.colorScheme.surfaceVariant // Default
+    }
+
+    val statusTextColor = when (booking.status) {
+        "Approved" -> Color(0xFF388E3C) // Hijau tua
+        "Rejected" -> Color(0xFFD32F2F) // Merah tua
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(2.dp)
+        elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = statusColor) // Terapkan warna
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
@@ -140,14 +155,53 @@ fun BookingHistoryItem(
                     } ?: "Tanggal tidak tersedia"
                     Text(date, style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
+                // Tampilkan Status
+                Text(
+                    booking.status,
+                    fontWeight = FontWeight.Bold,
+                    color = statusTextColor,
+                    modifier = Modifier.padding(start = 8.dp)
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            // Tombol untuk membatalkan booking
-            OutlinedButton(
-                onClick = { onCancelClick(booking) },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Batalkan Booking", fontSize = 12.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Tampilkan info tambahan berdasarkan status
+            when (booking.status) {
+                "Approved" -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.5f))
+                            .padding(12.dp)
+                    ) {
+                        Text("Silakan lakukan pembayaran ke:", fontWeight = FontWeight.Bold)
+                        Text(booking.adminPaymentDetails ?: "Admin belum memasukkan detail rekening.", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Sebesar: ${booking.kostPrice}", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                "Rejected" -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.White.copy(alpha = 0.5f))
+                            .padding(12.dp)
+                    ) {
+                        Text("Alasan Penolakan:", fontWeight = FontWeight.Bold)
+                        Text(booking.rejectionMessage ?: "Admin tidak memberikan alasan.", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+                "Pending" -> {
+                    // Tampilkan tombol batal HANYA jika masih pending
+                    OutlinedButton(
+                        onClick = { onCancelClick(booking) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Batalkan Booking", fontSize = 12.sp)
+                    }
+                }
             }
         }
     }

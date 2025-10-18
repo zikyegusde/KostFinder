@@ -1,14 +1,17 @@
 package com.example.kostfinder
 
 import android.net.Uri
+import android.util.Log // Import Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
+import com.example.kostfinder.models.Booking
 import com.example.kostfinder.models.Kost
 import com.example.kostfinder.models.Rating
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +39,11 @@ class KostViewModel : ViewModel() {
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
+
+    // --- BARU: Flow untuk daftar booking per-kos (untuk Admin) ---
+    private val _kostBookings = MutableStateFlow<List<Booking>>(emptyList())
+    val kostBookings = _kostBookings.asStateFlow()
+    // -------------------------------------------------------------
 
     init {
         fetchKostList()
@@ -66,6 +74,56 @@ class KostViewModel : ViewModel() {
             _isLoading.value = false
         }
     }
+
+    // --- BARU: Fungsi untuk admin mengambil data booking per-kos ---
+    fun getBookingsForKost(kostId: String) {
+        // --- TAMBAHKAN BARIS INI UNTUK MERESET STATE ---
+        _kostBookings.value = emptyList()
+        // ---------------------------------------------
+
+        db.collection("bookings")
+            .whereEqualTo("kostId", kostId)
+            .orderBy("bookingDate", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (snapshot != null) {
+                    _kostBookings.value = snapshot.toObjects(Booking::class.java)
+                } else if (error != null) {
+                    // Opsional: Tambahkan logging error
+                    Log.e("KostViewModel", "Error fetching bookings for kost $kostId", error)
+                    _kostBookings.value = emptyList() // Pastikan kosong jika ada error
+                }
+            }
+    }
+    // -------------------------------------------------------------
+
+    // --- BARU: Fungsi untuk admin update status booking ---
+    fun updateBookingStatus(bookingId: String, status: String, rejectionMessage: String? = null, paymentDetails: String? = null, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val updates = mutableMapOf<String, Any?>()
+                updates["status"] = status
+                updates["rejectionMessage"] = rejectionMessage
+                if (status == "Approved") {
+                    updates["adminPaymentDetails"] = paymentDetails
+                } else {
+                    // Ensure payment details are cleared if not approved
+                    updates["adminPaymentDetails"] = null
+                }
+                // Clear rejection message if approved
+                if (status == "Approved") {
+                    updates["rejectionMessage"] = null
+                }
+
+
+                db.collection("bookings").document(bookingId).update(updates).await()
+                onComplete(true)
+            } catch (e: Exception) {
+                Log.e("KostViewModel", "Error updating booking status", e) // Log error
+                onComplete(false)
+            }
+        }
+    }
+    // ---------------------------------------------------
 
     fun uploadImageToCloudinary(imageUri: Uri, callback: (Result<String>) -> Unit) {
         _isLoading.value = true
@@ -124,14 +182,24 @@ class KostViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 db.collection("kosts").document(kostId).delete().await()
+                // --- BARU: Hapus juga booking terkait saat kost dihapus ---
+                val bookingQuery = db.collection("bookings").whereEqualTo("kostId", kostId).get().await()
+                val batch = db.batch()
+                bookingQuery.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                batch.commit().await()
+                // -------------------------------------------------------
                 callback(true, null)
             } catch (e: Exception) {
+                Log.e("KostViewModel", "Error deleting kost or related bookings", e) // Log error
                 callback(false, e.message)
             } finally {
                 _isLoading.value = false
             }
         }
     }
+
 
     fun getKostById(kostId: String) {
         viewModelScope.launch {

@@ -12,28 +12,39 @@ import com.example.kostfinder.models.User
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
-class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
+class UserViewModel : ViewModel() {
     private val db = Firebase.firestore
     private val auth = Firebase.auth
 
     private val _userData = MutableStateFlow<User?>(null)
     val userData: StateFlow<User?> = _userData
 
+    // --- BARU: Flow untuk riwayat booking ---
+    private val _bookingHistory = MutableStateFlow<List<Booking>>(emptyList())
+    val bookingHistory: StateFlow<List<Booking>> = _bookingHistory.asStateFlow()
+    // ----------------------------------------
+
     init {
         auth.addAuthStateListener { firebaseAuth ->
             val user = firebaseAuth.currentUser
             if (user != null) {
                 fetchUserData(user.uid)
+                // --- BARU: Ambil riwayat booking saat login ---
+                fetchUserBookings(user.uid)
+                // -----------------------------------------
             } else {
                 _userData.value = null
+                _bookingHistory.value = emptyList() // Kosongkan saat logout
             }
         }
     }
@@ -51,6 +62,23 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
         }
     }
 
+    // --- BARU: Fungsi untuk mengambil booking milik user ---
+    private fun fetchUserBookings(uid: String) {
+        db.collection("bookings")
+            .whereEqualTo("userId", uid)
+            .orderBy("bookingDate", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("UserViewModel", "Error fetching bookings: ", error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    _bookingHistory.value = snapshot.toObjects(Booking::class.java)
+                }
+            }
+    }
+    // ----------------------------------------------------
+
     fun addRecentlyViewed(kostId: String) {
         val user = auth.currentUser ?: return
         val currentList = _userData.value?.recentlyViewedIds?.toMutableList() ?: mutableListOf()
@@ -59,7 +87,6 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
         currentList.add(0, kostId)
         val updatedList = currentList.take(10)
 
-        // Simpan ke Firestore
         db.collection("users").document(user.uid)
             .update("recentlyViewedIds", updatedList)
             .addOnFailureListener { e ->
@@ -118,31 +145,34 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
         }
     }
 
+    // --- MODIFIKASI: Logika bookKost ---
     fun bookKost(kost: Kost, context: Context, onComplete: (Boolean) -> Unit) {
         val user = auth.currentUser
-        if (user == null) {
+        val currentUserData = _userData.value
+        if (user == null || currentUserData == null) {
             Toast.makeText(context, "Anda harus login untuk booking.", Toast.LENGTH_SHORT).show()
             onComplete(false)
             return
         }
 
-        val userRef = db.collection("users").document(user.uid)
-        val kostRef = db.collection("kosts").document(kost.id)
-
+        // Buat dokumen booking baru di koleksi /bookings
         viewModelScope.launch {
             try {
-                db.runTransaction { transaction ->
-                    val newBooking = Booking(
-                        kostId = kost.id,
-                        kostName = kost.name,
-                        kostImageUrl = kost.imageUrl,
-                        kostPrice = kost.promoPrice ?: kost.price,
-                        bookingDate = Date()
-                    )
-                    transaction.update(userRef, "bookings", FieldValue.arrayUnion(newBooking))
-                    transaction.update(kostRef, "bookedBy", FieldValue.arrayUnion(user.uid))
-                }.await()
-                Toast.makeText(context, "Booking berhasil!", Toast.LENGTH_SHORT).show()
+                val newBooking = Booking(
+                    kostId = kost.id,
+                    kostName = kost.name,
+                    kostImageUrl = kost.imageUrl,
+                    kostPrice = kost.promoPrice ?: kost.price,
+                    userId = user.uid,
+                    userName = currentUserData.name.ifBlank { currentUserData.email },
+                    userEmail = currentUserData.email,
+                    status = "Pending",
+                    bookingDate = Date()
+                )
+
+                db.collection("bookings").add(newBooking).await()
+
+                Toast.makeText(context, "Booking terkirim, menunggu konfirmasi admin.", Toast.LENGTH_SHORT).show()
                 onComplete(true)
             } catch (e: Exception) {
                 Toast.makeText(context, "Gagal melakukan booking: ${e.message}", Toast.LENGTH_LONG).show()
@@ -150,6 +180,7 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
             }
         }
     }
+    // ---------------------------------
 
     fun updateUserProfilePicture(newImageUrl: String, context: Context, onComplete: (Boolean) -> Unit) {
         val user = auth.currentUser
@@ -174,6 +205,7 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
         }
     }
 
+    // --- MODIFIKASI: Logika cancelBooking ---
     fun cancelBooking(booking: Booking, context: Context, onComplete: (Boolean) -> Unit) {
         val user = auth.currentUser
         if (user == null) {
@@ -182,15 +214,10 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
             return
         }
 
-        val userRef = db.collection("users").document(user.uid)
-        val kostRef = db.collection("kosts").document(booking.kostId)
-
+        // Hanya hapus dokumen dari koleksi /bookings
         viewModelScope.launch {
             try {
-                db.runTransaction { transaction ->
-                    transaction.update(userRef, "bookings", FieldValue.arrayRemove(booking))
-                    transaction.update(kostRef, "bookedBy", FieldValue.arrayRemove(user.uid))
-                }.await()
+                db.collection("bookings").document(booking.id).delete().await()
                 Toast.makeText(context, "Booking berhasil dibatalkan.", Toast.LENGTH_SHORT).show()
                 onComplete(true)
             } catch (e: Exception) {
@@ -199,4 +226,5 @@ class UserViewModel : ViewModel() { // Kembali menggunakan ViewModel biasa
             }
         }
     }
+    // -------------------------------------
 }

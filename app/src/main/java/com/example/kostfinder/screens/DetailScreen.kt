@@ -64,6 +64,11 @@ fun DetailScreen(
     val isLoading by kostViewModel.isLoading.collectAsState()
     val userData by userViewModel.userData.collectAsState()
 
+    // --- MODIFIKASI: Logika pengecekan booking ---
+    val userBookings by userViewModel.bookingHistory.collectAsState()
+    val currentBookingForThisKost = userBookings.find { it.kostId == kostId }
+    // -------------------------------------------
+
     val isFavorite = userData?.favoriteKostIds?.contains(kostId) == true
 
     var showBookingDialog by remember { mutableStateOf(false) }
@@ -110,7 +115,9 @@ fun DetailScreen(
                 Text("Gagal memuat detail kost. Silakan coba lagi.")
             } else {
                 kost?.let { currentKost ->
-                    val isBookedByCurrentUser = currentUser?.uid in currentKost.bookedBy
+                    // --- MODIFIKASI: Hapus pengecekan 'bookedBy' yang lama ---
+                    // val isBookedByCurrentUser = currentUser?.uid in currentKost.bookedBy
+                    // --------------------------------------------------------
                     val averageRating = if (currentKost.ratings.isNotEmpty()) {
                         currentKost.ratings.map { it.rating }.average()
                     } else 0.0
@@ -191,13 +198,28 @@ fun DetailScreen(
                             ) {
                                 Text("Telepon")
                             }
+                            // --- MODIFIKASI: Logika Tombol Booking ---
                             Button(
                                 onClick = { showBookingDialog = true },
-                                enabled = currentKost.isAvailable && !isBookedByCurrentUser,
-                                modifier = Modifier.weight(1f).height(48.dp)
+                                enabled = currentBookingForThisKost == null && currentKost.isAvailable,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    disabledContainerColor = when (currentBookingForThisKost?.status) {
+                                        "Pending" -> Color.Gray
+                                        "Approved" -> Color(0xFF2E7D32) // Hijau
+                                        "Rejected" -> MaterialTheme.colorScheme.error
+                                        else -> MaterialTheme.colorScheme.primary
+                                    }
+                                )
                             ) {
-                                Text(if (isBookedByCurrentUser) "Sudah Dipesan" else "Booking")
+                                val buttonText = when {
+                                    currentBookingForThisKost != null -> "Status: ${currentBookingForThisKost.status}"
+                                    !currentKost.isAvailable -> "Penuh"
+                                    else -> "Booking"
+                                }
+                                Text(buttonText)
                             }
+                            // ----------------------------------------
                         }
                         Spacer(modifier = Modifier.height(24.dp))
 
@@ -313,11 +335,13 @@ fun DetailScreen(
                 confirmButton = {
                     TextButton(onClick = {
                         kost?.let {
+                            // --- MODIFIKASI: Panggil bookKost yang baru ---
                             userViewModel.bookKost(it, context) { success ->
                                 if (success) {
                                     showBookingDialog = false
                                 }
                             }
+                            // -----------------------------------------
                         }
                     }) {
                         Text("Konfirmasi")

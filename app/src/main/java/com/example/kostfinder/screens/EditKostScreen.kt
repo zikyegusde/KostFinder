@@ -349,7 +349,7 @@ fun EditKostScreen(
                                 tags = tags,
                                 createdAt = selectedKost?.createdAt,
                                 ratings = selectedKost?.ratings ?: emptyList(),
-                                bookedBy = selectedKost?.bookedBy ?: emptyList()
+                                // bookedBy = selectedKost?.bookedBy ?: emptyList()
                             )
 
                             kostViewModel.updateKost(kostId, updatedKost) { success, error ->
