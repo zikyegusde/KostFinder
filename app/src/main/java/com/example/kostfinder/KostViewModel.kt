@@ -1,7 +1,6 @@
 package com.example.kostfinder
 
 import android.net.Uri
-import android.util.Log // Import Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
@@ -77,20 +76,12 @@ class KostViewModel : ViewModel() {
 
     // --- BARU: Fungsi untuk admin mengambil data booking per-kos ---
     fun getBookingsForKost(kostId: String) {
-        // --- TAMBAHKAN BARIS INI UNTUK MERESET STATE ---
-        _kostBookings.value = emptyList()
-        // ---------------------------------------------
-
         db.collection("bookings")
             .whereEqualTo("kostId", kostId)
             .orderBy("bookingDate", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (snapshot != null) {
                     _kostBookings.value = snapshot.toObjects(Booking::class.java)
-                } else if (error != null) {
-                    // Opsional: Tambahkan logging error
-                    Log.e("KostViewModel", "Error fetching bookings for kost $kostId", error)
-                    _kostBookings.value = emptyList() // Pastikan kosong jika ada error
                 }
             }
     }
@@ -105,20 +96,11 @@ class KostViewModel : ViewModel() {
                 updates["rejectionMessage"] = rejectionMessage
                 if (status == "Approved") {
                     updates["adminPaymentDetails"] = paymentDetails
-                } else {
-                    // Ensure payment details are cleared if not approved
-                    updates["adminPaymentDetails"] = null
                 }
-                // Clear rejection message if approved
-                if (status == "Approved") {
-                    updates["rejectionMessage"] = null
-                }
-
 
                 db.collection("bookings").document(bookingId).update(updates).await()
                 onComplete(true)
             } catch (e: Exception) {
-                Log.e("KostViewModel", "Error updating booking status", e) // Log error
                 onComplete(false)
             }
         }
@@ -182,24 +164,14 @@ class KostViewModel : ViewModel() {
             _isLoading.value = true
             try {
                 db.collection("kosts").document(kostId).delete().await()
-                // --- BARU: Hapus juga booking terkait saat kost dihapus ---
-                val bookingQuery = db.collection("bookings").whereEqualTo("kostId", kostId).get().await()
-                val batch = db.batch()
-                bookingQuery.documents.forEach { doc ->
-                    batch.delete(doc.reference)
-                }
-                batch.commit().await()
-                // -------------------------------------------------------
                 callback(true, null)
             } catch (e: Exception) {
-                Log.e("KostViewModel", "Error deleting kost or related bookings", e) // Log error
                 callback(false, e.message)
             } finally {
                 _isLoading.value = false
             }
         }
     }
-
 
     fun getKostById(kostId: String) {
         viewModelScope.launch {
